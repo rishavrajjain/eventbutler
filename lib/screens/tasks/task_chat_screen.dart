@@ -180,11 +180,14 @@ class _TaskChatScreenState extends State<TaskChatScreen> {
                         : const Icon(Icons.add),
                     label: Text(saving ? 'Adding...' : 'Add to list'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: _accent,
-                      foregroundColor: _night,
+                      backgroundColor: _night,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 14,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                   ),

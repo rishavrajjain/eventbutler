@@ -192,7 +192,7 @@ We will not run Postgres locally.
 
 ## 11) Build and quality gates (every session)
 Before stopping:
-- `flutter build web --base-href /app/ --wasm --no-tree-shake-icons --output ../recipe_butler_server/web/app` passes (ensures icons/fonts bundled for /app)
+- `flutter build web --base-href / --wasm --no-tree-shake-icons --output ../recipe_butler_server/web/app` (serve at root with icons/fonts intact)
 - no analyzer errors
 - basic happy-path manual test:
   - create list
@@ -222,6 +222,26 @@ Before stopping:
 - What changed: Created Cloud secret `REDIS_PASSWORD` with provided Upstash token and deployed project `recipebutler` to Serverpod Cloud (includes Redis-enabled configs).
 - Issues: None observed; verify runtime connectivity in Cloud logs to ensure Redis TLS connection succeeds.
 - Next steps: Smoke-test realtime chat and shopping updates with two users; monitor Cloud logs for Redis connection; add reconnection handling if needed.
+
+- Date: 2026-01-27
+- What changed: Client now opens Serverpod streaming connection during init and TasksProvider auto-retries stream subscriptions with backoff if the socket closes/errors, so chat/list updates should stay live without reopening screens.
+- Issues: `dart format` failed locally due to sandbox write limits (engine.stamp). Not rerun.
+- Next steps: Validate realtime chat across two clients; if formatter still blocked, run `dart format lib/services/serverpod_client_service.dart lib/providers/tasks_provider.dart` outside sandbox or after fixing permissions.
+
+- Date: 2026-01-27
+- What changed: Added fallback polling in TasksProvider (5s) whenever streams fail/close, stopping once realtime events arrive. This keeps chat updating even if Redis/websocket is flaky.
+- Issues: Need to confirm Serverpod Cloud Redis connectivity to eliminate stream errors altogether.
+- Next steps: Check cloud logs for Redis errors and redeploy if needed; otherwise the client will still auto-poll.
+
+- Date: 2026-01-27
+- What changed: Server `_postEvent` for shopping and tasks now uses Redis only when a Redis controller is available; otherwise broadcasts locally (single-instance friendly). Prevents crashes when Redis is disabled/misconfigured while keeping global fan-out when Redis is up.
+- Issues: Redis still not connecting in Cloud (log shows “Redis needs to be enabled”). Need to set prod Redis password/enable in Cloud or accept single-instance local broadcasts.
+- Next steps: Add `REDIS_PASSWORD` secret in Cloud and redeploy; or keep single-instance mode.
+
+- Date: 2026-01-27
+- What changed: Deployed project `recipebutler` to Serverpod Cloud (deploy id 3a710854-bf75-46b2-8172-11a15f4b8a8a finished SUCCESS 18:09 IST). Redis secret already exists in Cloud (`REDIS_PASSWORD`); runtime logs after deploy show clean startup (no Redis-disabled warnings).
+- Issues: None observed post-deploy; need live chat test to confirm streams.
+- Next steps: Smoke-test chat with two browsers; watch `scloud log --project recipebutler --tail` for any Redis publish errors during chat.
 
 ### Serverpod
 - Never edit generated code.

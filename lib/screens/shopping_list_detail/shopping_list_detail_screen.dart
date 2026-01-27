@@ -99,6 +99,12 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen> {
           appBar: AppBar(
             titleSpacing: 0,
             backgroundColor: _panelLight,
+            leading: IconButton(
+              tooltip: 'Refresh',
+              icon: const Icon(Icons.refresh, color: _inkBlack),
+              onPressed: () =>
+                  context.read<ShoppingListsProvider>().refreshActive(),
+            ),
             title: Padding(
               padding: const EdgeInsets.only(left: 8),
               child: _ListSwitcher(
@@ -109,12 +115,6 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen> {
               ),
             ),
             actions: [
-              IconButton(
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.save_alt_outlined, color: _inkBlack),
-                onPressed: () =>
-                    context.read<ShoppingListsProvider>().refreshActive(),
-              ),
               IconButton(
                 tooltip: 'Share',
                 icon: const Icon(Icons.ios_share, color: _inkBlack),
@@ -139,10 +139,38 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen> {
                       children: [
                         const SizedBox(height: 12),
                         if (items.isEmpty)
-                          const EmptyStateWidget(
-                            title: 'No items yet',
-                            subtitle: 'Add ingredients or type your own items.',
-                            icon: Icons.playlist_add,
+                          const Padding(
+                            padding: EdgeInsets.only(top: 60),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image(
+                                    image: AssetImage(
+                                      'images/butler_logo_shopping_cart_empty.png',
+                                    ),
+                                    height: 200,
+                                  ),
+                                  SizedBox(height: 24),
+                                  Text(
+                                    'Your list is empty',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: _inkBlack,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Add ingredients or type your own items.',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: _fadedText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           )
                         else
                           ...sections
@@ -333,6 +361,14 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen> {
                         final ok = await provider.acceptInvite(token);
                         if (ctx.mounted && ok) Navigator.of(ctx).pop();
                       },
+                style: FilledButton.styleFrom(
+                  backgroundColor: _inkBlack,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: provider.isMutating
                     ? const SizedBox(
                         height: 18,
@@ -460,14 +496,14 @@ class _ListSwitcher extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: _brandYellow,
+                  color: _inkBlack,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.keyboard_arrow_down, color: _brandYellow),
+          const Icon(Icons.keyboard_arrow_down, color: _inkBlack),
         ],
       ),
     );
@@ -528,6 +564,14 @@ class _ListSwitcher extends StatelessWidget {
                   await onCreate(name);
                   if (ctx.mounted) Navigator.of(ctx).pop();
                 },
+                style: FilledButton.styleFrom(
+                  backgroundColor: _inkBlack,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: const Text('Create and switch'),
               ),
             ],
@@ -899,7 +943,7 @@ class _AddItemBar extends StatelessWidget {
                             ),
                           ),
                         )
-                      : const Text('+'),
+                      : const Icon(Icons.add, size: 28),
                 ),
               ],
             ),
@@ -1045,6 +1089,14 @@ class _CategoryShelfState extends State<_CategoryShelf> {
               const SizedBox(height: 14),
               FilledButton(
                 onPressed: () => _save(ctx),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _inkBlack,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: const Text('Save'),
               ),
             ],
@@ -1086,6 +1138,17 @@ class _CategoryShelfState extends State<_CategoryShelf> {
                 children: [
                   FilledButton(
                     onPressed: () => _rename(ctx, cat, renameController.text),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _inkBlack,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: const Text('Rename'),
                   ),
                   const SizedBox(width: 12),

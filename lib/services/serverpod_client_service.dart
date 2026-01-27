@@ -25,6 +25,19 @@ class ServerpodClientService {
     // Ensure Firebase sign-in is wired to Serverpod auth (idempotent).
     authManager.initializeFirebaseSignIn();
 
+    // Open the streaming connection up-front so realtime features (chat,
+    // shopping updates) start receiving events immediately. Without this,
+    // Serverpod will lazily try to connect on first stream subscription and
+    // failures can leave listeners silent until the user navigates away.
+    try {
+      await client.openStreamingConnection();
+    } catch (e) {
+      // Keep the app usable even if streaming boot fails; providers will
+      // retry later, but log to aid debugging in dev consoles.
+      // ignore: avoid_print
+      print('[Serverpod] Streaming connection failed to open: $e');
+    }
+
     _initialized = true;
   }
 }

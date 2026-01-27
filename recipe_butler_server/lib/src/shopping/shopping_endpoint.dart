@@ -313,10 +313,11 @@ class ShoppingEndpoint extends Endpoint {
     ShoppingListEvent event,
   ) async {
     try {
+      final useGlobal = session.serverpod.redisController != null;
       await session.messages.postMessage(
         _channelName(listId),
         event,
-        global: true,
+        global: useGlobal,
       );
     } catch (e, st) {
       session.log(

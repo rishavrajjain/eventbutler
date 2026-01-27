@@ -165,7 +165,7 @@ class _AddRecipeSheetState extends State<_AddRecipeSheet> {
                 keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
+              FilledButton(
                 onPressed: provider.isMutating
                     ? null
                     : () async {
@@ -180,6 +180,14 @@ class _AddRecipeSheetState extends State<_AddRecipeSheet> {
                         if (!mounted) return;
                         navigator.pop();
                       },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF111217),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: provider.isMutating
                     ? const SizedBox(
                         height: 18,
@@ -249,7 +257,7 @@ class _ImportRecipeSheetState extends State<_ImportRecipeSheet> {
                 textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
+              FilledButton(
                 onPressed: provider.isMutating
                     ? null
                     : () async {
@@ -260,6 +268,14 @@ class _ImportRecipeSheetState extends State<_ImportRecipeSheet> {
                         if (!mounted) return;
                         navigator.pop();
                       },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF111217),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: provider.isMutating
                     ? const SizedBox(
                         height: 18,

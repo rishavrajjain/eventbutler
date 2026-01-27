@@ -192,7 +192,7 @@ We will not run Postgres locally.
 
 ## 11) Build and quality gates (every session)
 Before stopping:
-- `flutter build web --base-href /app/ --wasm --no-tree-shake-icons --output ../recipe_butler_server/web/app` (ensures icons/fonts for /app)
+- `flutter build web --base-href / --wasm --no-tree-shake-icons --output ../recipe_butler_server/web/app` (serve at root; preserves icons/fonts)
 - no analyzer errors
 - basic happy-path manual test:
   - create list

@@ -6,7 +6,7 @@ import 'package:recipe_butler_client/recipe_butler_client.dart';
 
 import '../../../providers/reminders_provider.dart';
 import '../../../providers/shopping_lists_provider.dart';
-import '../../../widgets/empty_state_widget.dart';
+
 import '../../../widgets/error_state_widget.dart';
 import '../../../widgets/loading_widget.dart';
 
@@ -87,10 +87,38 @@ class _RemindersTabState extends State<RemindersTab> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
               if (upcoming.isEmpty)
-                const EmptyStateWidget(
-                  title: 'No upcoming reminders',
-                  subtitle: 'Tap + to schedule a reminder for your events.',
-                  icon: Icons.alarm_add_outlined,
+                Padding(
+                  padding: const EdgeInsets.only(top: 60),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Image(
+                          image: AssetImage(
+                            'images/butler_logo_reminder_empty.png',
+                          ),
+                          height: 200,
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'No upcoming reminders',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF111217),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tap + to schedule a reminder for your events.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 )
               else ...[
                 _SectionHeader(label: 'Upcoming', count: upcoming.length),
@@ -482,6 +510,14 @@ class _NewReminderFormState extends State<_NewReminderForm> {
           width: double.infinity,
           child: FilledButton(
             onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF111217),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
             child: _saving
                 ? const SizedBox(
                     height: 16,
