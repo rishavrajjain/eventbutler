@@ -1,0 +1,5 @@
+class: ButlerShopping
+fields:
+  title: String
+  qty: String?
+  notes: String?

@@ -10,34 +10,58 @@
 // ignore_for_file: invalid_use_of_internal_member
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:serverpod_client/serverpod_client.dart' as _i1;
+import 'dart:async' as _i2;
+import 'package:recipe_butler_client/src/protocol/ai/butler_suggestion.dart'
+    as _i3;
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
-    as _i1;
-import 'package:serverpod_client/serverpod_client.dart' as _i2;
-import 'dart:async' as _i3;
-import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _i4;
-import 'package:recipe_butler_client/src/protocol/greetings/greeting.dart'
+import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _i5;
-import 'package:recipe_butler_client/src/protocol/recipes/recipe.dart' as _i6;
+import 'package:recipe_butler_client/src/protocol/greetings/greeting.dart'
+    as _i6;
+import 'package:recipe_butler_client/src/protocol/recipes/recipe.dart' as _i7;
 import 'package:recipe_butler_client/src/protocol/shopping/reminder.dart'
-    as _i7;
-import 'package:recipe_butler_client/src/protocol/shopping/shopping_list.dart'
     as _i8;
-import 'package:recipe_butler_client/src/protocol/shopping/shopping_item.dart'
+import 'package:recipe_butler_client/src/protocol/shopping/shopping_list.dart'
     as _i9;
-import 'package:recipe_butler_client/src/protocol/shopping/shopping_list_event.dart'
+import 'package:recipe_butler_client/src/protocol/shopping/shopping_item.dart'
     as _i10;
-import 'package:recipe_butler_client/src/protocol/shopping/invite.dart' as _i11;
+import 'package:recipe_butler_client/src/protocol/shopping/shopping_list_event.dart'
+    as _i11;
+import 'package:recipe_butler_client/src/protocol/shopping/invite.dart' as _i12;
 import 'package:recipe_butler_client/src/protocol/shopping/task_message.dart'
-    as _i12;
-import 'protocol.dart' as _i13;
+    as _i13;
+import 'protocol.dart' as _i14;
+
+/// {@category Endpoint}
+class EndpointAi extends _i1.EndpointRef {
+  EndpointAi(_i1.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'ai';
+
+  _i2.Future<_i3.ButlerSuggestion> suggest(
+    String userKey,
+    int listId,
+    String prompt,
+  ) => caller.callServerEndpoint<_i3.ButlerSuggestion>(
+    'ai',
+    'suggest',
+    {
+      'userKey': userKey,
+      'listId': listId,
+      'prompt': prompt,
+    },
+  );
+}
 
 /// By extending [EmailIdpBaseEndpoint], the email identity provider endpoints
 /// are made available on the server and enable the corresponding sign-in widget
 /// on the client.
 /// {@category Endpoint}
-class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
-  EndpointEmailIdp(_i2.EndpointCaller caller) : super(caller);
+class EndpointEmailIdp extends _i4.EndpointEmailIdpBase {
+  EndpointEmailIdp(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'emailIdp';
@@ -52,10 +76,10 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
   ///
   /// Throws an [AuthUserBlockedException] if the auth user is blocked.
   @override
-  _i3.Future<_i4.AuthSuccess> login({
+  _i2.Future<_i5.AuthSuccess> login({
     required String email,
     required String password,
-  }) => caller.callServerEndpoint<_i4.AuthSuccess>(
+  }) => caller.callServerEndpoint<_i5.AuthSuccess>(
     'emailIdp',
     'login',
     {
@@ -75,8 +99,8 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
   /// registration. If the email is already registered, the returned ID will not
   /// be valid.
   @override
-  _i3.Future<_i2.UuidValue> startRegistration({required String email}) =>
-      caller.callServerEndpoint<_i2.UuidValue>(
+  _i2.Future<_i1.UuidValue> startRegistration({required String email}) =>
+      caller.callServerEndpoint<_i1.UuidValue>(
         'emailIdp',
         'startRegistration',
         {'email': email},
@@ -93,8 +117,8 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
   /// - [EmailAccountRequestExceptionReason.invalid] if no request exists
   ///   for the given [accountRequestId] or [verificationCode] is invalid.
   @override
-  _i3.Future<String> verifyRegistrationCode({
-    required _i2.UuidValue accountRequestId,
+  _i2.Future<String> verifyRegistrationCode({
+    required _i1.UuidValue accountRequestId,
     required String verificationCode,
   }) => caller.callServerEndpoint<String>(
     'emailIdp',
@@ -120,10 +144,10 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
   ///
   /// Returns a session for the newly created user.
   @override
-  _i3.Future<_i4.AuthSuccess> finishRegistration({
+  _i2.Future<_i5.AuthSuccess> finishRegistration({
     required String registrationToken,
     required String password,
-  }) => caller.callServerEndpoint<_i4.AuthSuccess>(
+  }) => caller.callServerEndpoint<_i5.AuthSuccess>(
     'emailIdp',
     'finishRegistration',
     {
@@ -146,8 +170,8 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
   ///   made too many attempts trying to request a password reset.
   ///
   @override
-  _i3.Future<_i2.UuidValue> startPasswordReset({required String email}) =>
-      caller.callServerEndpoint<_i2.UuidValue>(
+  _i2.Future<_i1.UuidValue> startPasswordReset({required String email}) =>
+      caller.callServerEndpoint<_i1.UuidValue>(
         'emailIdp',
         'startPasswordReset',
         {'email': email},
@@ -168,8 +192,8 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
   /// should be overridden to return credentials for the next step instead
   /// of the credentials for setting the password.
   @override
-  _i3.Future<String> verifyPasswordResetCode({
-    required _i2.UuidValue passwordResetRequestId,
+  _i2.Future<String> verifyPasswordResetCode({
+    required _i1.UuidValue passwordResetRequestId,
     required String verificationCode,
   }) => caller.callServerEndpoint<String>(
     'emailIdp',
@@ -195,7 +219,7 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
   ///
   /// Throws an [AuthUserBlockedException] if the auth user is blocked.
   @override
-  _i3.Future<void> finishPasswordReset({
+  _i2.Future<void> finishPasswordReset({
     required String finishPasswordResetToken,
     required String newPassword,
   }) => caller.callServerEndpoint<void>(
@@ -210,8 +234,8 @@ class EndpointEmailIdp extends _i1.EndpointEmailIdpBase {
 
 /// Exposes Firebase ID token login so Flutter can sign in with Google via Firebase.
 /// {@category Endpoint}
-class EndpointFirebaseIdp extends _i1.EndpointFirebaseIdpBase {
-  EndpointFirebaseIdp(_i2.EndpointCaller caller) : super(caller);
+class EndpointFirebaseIdp extends _i4.EndpointFirebaseIdpBase {
+  EndpointFirebaseIdp(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'firebaseIdp';
@@ -221,8 +245,8 @@ class EndpointFirebaseIdp extends _i1.EndpointFirebaseIdpBase {
   ///
   /// If a new user is created an associated [UserProfile] is also created.
   @override
-  _i3.Future<_i4.AuthSuccess> login({required String idToken}) =>
-      caller.callServerEndpoint<_i4.AuthSuccess>(
+  _i2.Future<_i5.AuthSuccess> login({required String idToken}) =>
+      caller.callServerEndpoint<_i5.AuthSuccess>(
         'firebaseIdp',
         'login',
         {'idToken': idToken},
@@ -232,8 +256,8 @@ class EndpointFirebaseIdp extends _i1.EndpointFirebaseIdpBase {
 /// By extending [RefreshJwtTokensEndpoint], the JWT token refresh endpoint
 /// is made available on the server and enables automatic token refresh on the client.
 /// {@category Endpoint}
-class EndpointJwtRefresh extends _i4.EndpointRefreshJwtTokens {
-  EndpointJwtRefresh(_i2.EndpointCaller caller) : super(caller);
+class EndpointJwtRefresh extends _i5.EndpointRefreshJwtTokens {
+  EndpointJwtRefresh(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'jwtRefresh';
@@ -257,9 +281,9 @@ class EndpointJwtRefresh extends _i4.EndpointRefreshJwtTokens {
   /// This endpoint is unauthenticated, meaning the client won't include any
   /// authentication information with the call.
   @override
-  _i3.Future<_i4.AuthSuccess> refreshAccessToken({
+  _i2.Future<_i5.AuthSuccess> refreshAccessToken({
     required String refreshToken,
-  }) => caller.callServerEndpoint<_i4.AuthSuccess>(
+  }) => caller.callServerEndpoint<_i5.AuthSuccess>(
     'jwtRefresh',
     'refreshAccessToken',
     {'refreshToken': refreshToken},
@@ -268,13 +292,13 @@ class EndpointJwtRefresh extends _i4.EndpointRefreshJwtTokens {
 }
 
 /// {@category Endpoint}
-class EndpointDebug extends _i2.EndpointRef {
-  EndpointDebug(_i2.EndpointCaller caller) : super(caller);
+class EndpointDebug extends _i1.EndpointRef {
+  EndpointDebug(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'debug';
 
-  _i3.Future<String> checkFirebaseSecret() => caller.callServerEndpoint<String>(
+  _i2.Future<String> checkFirebaseSecret() => caller.callServerEndpoint<String>(
     'debug',
     'checkFirebaseSecret',
     {},
@@ -284,15 +308,15 @@ class EndpointDebug extends _i2.EndpointRef {
 /// This is an example endpoint that returns a greeting message through
 /// its [hello] method.
 /// {@category Endpoint}
-class EndpointGreeting extends _i2.EndpointRef {
-  EndpointGreeting(_i2.EndpointCaller caller) : super(caller);
+class EndpointGreeting extends _i1.EndpointRef {
+  EndpointGreeting(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'greeting';
 
   /// Returns a personalized greeting message: "Hello {name}".
-  _i3.Future<_i5.Greeting> hello(String name) =>
-      caller.callServerEndpoint<_i5.Greeting>(
+  _i2.Future<_i6.Greeting> hello(String name) =>
+      caller.callServerEndpoint<_i6.Greeting>(
         'greeting',
         'hello',
         {'name': name},
@@ -300,16 +324,16 @@ class EndpointGreeting extends _i2.EndpointRef {
 }
 
 /// {@category Endpoint}
-class EndpointImport extends _i2.EndpointRef {
-  EndpointImport(_i2.EndpointCaller caller) : super(caller);
+class EndpointImport extends _i1.EndpointRef {
+  EndpointImport(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'import';
 
-  _i3.Future<_i6.Recipe> importRecipeFromUrl(
+  _i2.Future<_i7.Recipe> importRecipeFromUrl(
     String userKey,
     String url,
-  ) => caller.callServerEndpoint<_i6.Recipe>(
+  ) => caller.callServerEndpoint<_i7.Recipe>(
     'import',
     'importRecipeFromUrl',
     {
@@ -320,18 +344,18 @@ class EndpointImport extends _i2.EndpointRef {
 }
 
 /// {@category Endpoint}
-class EndpointRecipe extends _i2.EndpointRef {
-  EndpointRecipe(_i2.EndpointCaller caller) : super(caller);
+class EndpointRecipe extends _i1.EndpointRef {
+  EndpointRecipe(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'recipe';
 
   /// Create a recipe owned by the authenticated user.
-  _i3.Future<_i6.Recipe> createRecipe(
+  _i2.Future<_i7.Recipe> createRecipe(
     String userKey,
     String title, {
     String? sourceUrl,
-  }) => caller.callServerEndpoint<_i6.Recipe>(
+  }) => caller.callServerEndpoint<_i7.Recipe>(
     'recipe',
     'createRecipe',
     {
@@ -342,18 +366,18 @@ class EndpointRecipe extends _i2.EndpointRef {
   );
 
   /// List recipes for the authenticated user.
-  _i3.Future<List<_i6.Recipe>> listMyRecipes(String userKey) =>
-      caller.callServerEndpoint<List<_i6.Recipe>>(
+  _i2.Future<List<_i7.Recipe>> listMyRecipes(String userKey) =>
+      caller.callServerEndpoint<List<_i7.Recipe>>(
         'recipe',
         'listMyRecipes',
         {'userKey': userKey},
       );
 
   /// Get a single recipe; ensures ownership.
-  _i3.Future<_i6.Recipe?> getRecipe(
+  _i2.Future<_i7.Recipe?> getRecipe(
     String userKey,
     int recipeId,
-  ) => caller.callServerEndpoint<_i6.Recipe?>(
+  ) => caller.callServerEndpoint<_i7.Recipe?>(
     'recipe',
     'getRecipe',
     {
@@ -363,7 +387,7 @@ class EndpointRecipe extends _i2.EndpointRef {
   );
 
   /// Delete a recipe; returns true if deleted.
-  _i3.Future<bool> deleteRecipe(
+  _i2.Future<bool> deleteRecipe(
     String userKey,
     int recipeId,
   ) => caller.callServerEndpoint<bool>(
@@ -377,16 +401,16 @@ class EndpointRecipe extends _i2.EndpointRef {
 }
 
 /// {@category Endpoint}
-class EndpointReminders extends _i2.EndpointRef {
-  EndpointReminders(_i2.EndpointCaller caller) : super(caller);
+class EndpointReminders extends _i1.EndpointRef {
+  EndpointReminders(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'reminders';
 
-  _i3.Future<List<_i7.Reminder>> listMyReminders(
+  _i2.Future<List<_i8.Reminder>> listMyReminders(
     String userKey, {
     DateTime? after,
-  }) => caller.callServerEndpoint<List<_i7.Reminder>>(
+  }) => caller.callServerEndpoint<List<_i8.Reminder>>(
     'reminders',
     'listMyReminders',
     {
@@ -395,10 +419,10 @@ class EndpointReminders extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<List<_i7.Reminder>> listRemindersForList(
+  _i2.Future<List<_i8.Reminder>> listRemindersForList(
     String userKey,
     int listId,
-  ) => caller.callServerEndpoint<List<_i7.Reminder>>(
+  ) => caller.callServerEndpoint<List<_i8.Reminder>>(
     'reminders',
     'listRemindersForList',
     {
@@ -407,13 +431,13 @@ class EndpointReminders extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<_i7.Reminder> addReminder(
+  _i2.Future<_i8.Reminder> addReminder(
     String userKey,
     int listId,
     String title,
     DateTime dueAt,
     String? targetEmail,
-  ) => caller.callServerEndpoint<_i7.Reminder>(
+  ) => caller.callServerEndpoint<_i8.Reminder>(
     'reminders',
     'addReminder',
     {
@@ -425,11 +449,11 @@ class EndpointReminders extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<_i7.Reminder?> toggleReminder(
+  _i2.Future<_i8.Reminder?> toggleReminder(
     String userKey,
     int reminderId,
     bool isDone,
-  ) => caller.callServerEndpoint<_i7.Reminder?>(
+  ) => caller.callServerEndpoint<_i8.Reminder?>(
     'reminders',
     'toggleReminder',
     {
@@ -439,7 +463,7 @@ class EndpointReminders extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<void> deleteReminder(
+  _i2.Future<void> deleteReminder(
     String userKey,
     int reminderId,
   ) => caller.callServerEndpoint<void>(
@@ -453,17 +477,17 @@ class EndpointReminders extends _i2.EndpointRef {
 }
 
 /// {@category Endpoint}
-class EndpointShopping extends _i2.EndpointRef {
-  EndpointShopping(_i2.EndpointCaller caller) : super(caller);
+class EndpointShopping extends _i1.EndpointRef {
+  EndpointShopping(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'shopping';
 
   /// Create a shopping list for the user.
-  _i3.Future<_i8.ShoppingList> createShoppingList(
+  _i2.Future<_i9.ShoppingList> createShoppingList(
     String userKey,
     String name,
-  ) => caller.callServerEndpoint<_i8.ShoppingList>(
+  ) => caller.callServerEndpoint<_i9.ShoppingList>(
     'shopping',
     'createShoppingList',
     {
@@ -473,20 +497,20 @@ class EndpointShopping extends _i2.EndpointRef {
   );
 
   /// List shopping lists the user owns or is a member of.
-  _i3.Future<List<_i8.ShoppingList>> listMyShoppingLists(String userKey) =>
-      caller.callServerEndpoint<List<_i8.ShoppingList>>(
+  _i2.Future<List<_i9.ShoppingList>> listMyShoppingLists(String userKey) =>
+      caller.callServerEndpoint<List<_i9.ShoppingList>>(
         'shopping',
         'listMyShoppingLists',
         {'userKey': userKey},
       );
 
   /// Add a shopping item.
-  _i3.Future<_i9.ShoppingItem> addShoppingItem(
+  _i2.Future<_i10.ShoppingItem> addShoppingItem(
     String userKey,
     int listId,
     String text,
     String? category,
-  ) => caller.callServerEndpoint<_i9.ShoppingItem>(
+  ) => caller.callServerEndpoint<_i10.ShoppingItem>(
     'shopping',
     'addShoppingItem',
     {
@@ -498,11 +522,11 @@ class EndpointShopping extends _i2.EndpointRef {
   );
 
   /// Toggle an item.
-  _i3.Future<_i9.ShoppingItem?> toggleShoppingItem(
+  _i2.Future<_i10.ShoppingItem?> toggleShoppingItem(
     String userKey,
     int itemId,
     bool isChecked,
-  ) => caller.callServerEndpoint<_i9.ShoppingItem?>(
+  ) => caller.callServerEndpoint<_i10.ShoppingItem?>(
     'shopping',
     'toggleShoppingItem',
     {
@@ -513,11 +537,11 @@ class EndpointShopping extends _i2.EndpointRef {
   );
 
   /// Update an item's category.
-  _i3.Future<_i9.ShoppingItem?> updateShoppingItemCategory(
+  _i2.Future<_i10.ShoppingItem?> updateShoppingItemCategory(
     String userKey,
     int itemId,
     String category,
-  ) => caller.callServerEndpoint<_i9.ShoppingItem?>(
+  ) => caller.callServerEndpoint<_i10.ShoppingItem?>(
     'shopping',
     'updateShoppingItemCategory',
     {
@@ -528,10 +552,10 @@ class EndpointShopping extends _i2.EndpointRef {
   );
 
   /// List items for a list.
-  _i3.Future<List<_i9.ShoppingItem>> listShoppingItems(
+  _i2.Future<List<_i10.ShoppingItem>> listShoppingItems(
     String userKey,
     int listId,
-  ) => caller.callServerEndpoint<List<_i9.ShoppingItem>>(
+  ) => caller.callServerEndpoint<List<_i10.ShoppingItem>>(
     'shopping',
     'listShoppingItems',
     {
@@ -541,13 +565,13 @@ class EndpointShopping extends _i2.EndpointRef {
   );
 
   /// Subscribe to realtime updates for a shopping list.
-  _i3.Stream<_i10.ShoppingListEvent> subscribeShoppingList(
+  _i2.Stream<_i11.ShoppingListEvent> subscribeShoppingList(
     String userKey,
     int listId,
   ) =>
       caller.callStreamingServerEndpoint<
-        _i3.Stream<_i10.ShoppingListEvent>,
-        _i10.ShoppingListEvent
+        _i2.Stream<_i11.ShoppingListEvent>,
+        _i11.ShoppingListEvent
       >(
         'shopping',
         'subscribeShoppingList',
@@ -559,11 +583,11 @@ class EndpointShopping extends _i2.EndpointRef {
       );
 
   /// Create an invite token for a list.
-  _i3.Future<_i11.Invite> createInvite(
+  _i2.Future<_i12.Invite> createInvite(
     String userKey,
     int listId,
     String role,
-  ) => caller.callServerEndpoint<_i11.Invite>(
+  ) => caller.callServerEndpoint<_i12.Invite>(
     'shopping',
     'createInvite',
     {
@@ -574,7 +598,7 @@ class EndpointShopping extends _i2.EndpointRef {
   );
 
   /// Accept an invite; returns list id.
-  _i3.Future<int?> acceptInvite(
+  _i2.Future<int?> acceptInvite(
     String userKey,
     String token,
   ) => caller.callServerEndpoint<int?>(
@@ -588,16 +612,16 @@ class EndpointShopping extends _i2.EndpointRef {
 }
 
 /// {@category Endpoint}
-class EndpointTasks extends _i2.EndpointRef {
-  EndpointTasks(_i2.EndpointCaller caller) : super(caller);
+class EndpointTasks extends _i1.EndpointRef {
+  EndpointTasks(_i1.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'tasks';
 
-  _i3.Future<List<_i12.TaskMessage>> listTasks(
+  _i2.Future<List<_i13.TaskMessage>> listTasks(
     String userKey,
     int listId,
-  ) => caller.callServerEndpoint<List<_i12.TaskMessage>>(
+  ) => caller.callServerEndpoint<List<_i13.TaskMessage>>(
     'tasks',
     'listTasks',
     {
@@ -606,11 +630,11 @@ class EndpointTasks extends _i2.EndpointRef {
     },
   );
 
-  _i3.Future<_i12.TaskMessage> addTask(
+  _i2.Future<_i13.TaskMessage> addTask(
     String userKey,
     int listId,
     String text,
-  ) => caller.callServerEndpoint<_i12.TaskMessage>(
+  ) => caller.callServerEndpoint<_i13.TaskMessage>(
     'tasks',
     'addTask',
     {
@@ -623,16 +647,16 @@ class EndpointTasks extends _i2.EndpointRef {
 
 class Modules {
   Modules(Client client) {
-    serverpod_auth_idp = _i1.Caller(client);
-    serverpod_auth_core = _i4.Caller(client);
+    serverpod_auth_idp = _i4.Caller(client);
+    serverpod_auth_core = _i5.Caller(client);
   }
 
-  late final _i1.Caller serverpod_auth_idp;
+  late final _i4.Caller serverpod_auth_idp;
 
-  late final _i4.Caller serverpod_auth_core;
+  late final _i5.Caller serverpod_auth_core;
 }
 
-class Client extends _i2.ServerpodClientShared {
+class Client extends _i1.ServerpodClientShared {
   Client(
     String host, {
     dynamic securityContext,
@@ -643,16 +667,16 @@ class Client extends _i2.ServerpodClientShared {
     Duration? streamingConnectionTimeout,
     Duration? connectionTimeout,
     Function(
-      _i2.MethodCallContext,
+      _i1.MethodCallContext,
       Object,
       StackTrace,
     )?
     onFailedCall,
-    Function(_i2.MethodCallContext)? onSucceededCall,
+    Function(_i1.MethodCallContext)? onSucceededCall,
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i13.Protocol(),
+         _i14.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -661,6 +685,7 @@ class Client extends _i2.ServerpodClientShared {
          disconnectStreamsOnLostInternetConnection:
              disconnectStreamsOnLostInternetConnection,
        ) {
+    ai = EndpointAi(this);
     emailIdp = EndpointEmailIdp(this);
     firebaseIdp = EndpointFirebaseIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
@@ -673,6 +698,8 @@ class Client extends _i2.ServerpodClientShared {
     tasks = EndpointTasks(this);
     modules = Modules(this);
   }
+
+  late final EndpointAi ai;
 
   late final EndpointEmailIdp emailIdp;
 
@@ -697,7 +724,8 @@ class Client extends _i2.ServerpodClientShared {
   late final Modules modules;
 
   @override
-  Map<String, _i2.EndpointRef> get endpointRefLookup => {
+  Map<String, _i1.EndpointRef> get endpointRefLookup => {
+    'ai': ai,
     'emailIdp': emailIdp,
     'firebaseIdp': firebaseIdp,
     'jwtRefresh': jwtRefresh,
@@ -711,7 +739,7 @@ class Client extends _i2.ServerpodClientShared {
   };
 
   @override
-  Map<String, _i2.ModuleEndpointCaller> get moduleLookup => {
+  Map<String, _i1.ModuleEndpointCaller> get moduleLookup => {
     'serverpod_auth_idp': modules.serverpod_auth_idp,
     'serverpod_auth_core': modules.serverpod_auth_core,
   };

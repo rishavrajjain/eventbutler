@@ -1,3 +1,5 @@
+ai:
+  - suggest:
 emailIdp:
   - login:
   - startRegistration:

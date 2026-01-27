@@ -9,8 +9,6 @@ import 'package:serverpod_auth_idp_server/providers/firebase.dart';
 import 'src/generated/endpoints.dart';
 import 'src/generated/protocol.dart';
 import 'src/future_calls/send_reminder_email.dart';
-import 'src/web/routes/app_config_route.dart';
-import 'src/web/routes/root.dart';
 import 'src/config/firebase_credentials.dart';
 
 /// The starting point of the Serverpod server.

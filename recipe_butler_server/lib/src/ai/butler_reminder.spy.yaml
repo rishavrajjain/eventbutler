@@ -1,0 +1,5 @@
+class: ButlerReminder
+fields:
+  title: String
+  dueIso: String?
+  item: String?

@@ -16,26 +16,32 @@ import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
     as _i3;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i4;
-import 'greetings/greeting.dart' as _i5;
-import 'recipes/ingredient.dart' as _i6;
-import 'recipes/recipe.dart' as _i7;
-import 'recipes/recipe_step.dart' as _i8;
-import 'shopping/invite.dart' as _i9;
-import 'shopping/reminder.dart' as _i10;
-import 'shopping/shopping_item.dart' as _i11;
-import 'shopping/shopping_list.dart' as _i12;
-import 'shopping/shopping_list_event.dart' as _i13;
-import 'shopping/shopping_list_member.dart' as _i14;
-import 'shopping/task_message.dart' as _i15;
-import 'package:recipe_butler_server/src/generated/recipes/recipe.dart' as _i16;
+import 'ai/butler_reminder.dart' as _i5;
+import 'ai/butler_shopping.dart' as _i6;
+import 'ai/butler_suggestion.dart' as _i7;
+import 'greetings/greeting.dart' as _i8;
+import 'recipes/ingredient.dart' as _i9;
+import 'recipes/recipe.dart' as _i10;
+import 'recipes/recipe_step.dart' as _i11;
+import 'shopping/invite.dart' as _i12;
+import 'shopping/reminder.dart' as _i13;
+import 'shopping/shopping_item.dart' as _i14;
+import 'shopping/shopping_list.dart' as _i15;
+import 'shopping/shopping_list_event.dart' as _i16;
+import 'shopping/shopping_list_member.dart' as _i17;
+import 'shopping/task_message.dart' as _i18;
+import 'package:recipe_butler_server/src/generated/recipes/recipe.dart' as _i19;
 import 'package:recipe_butler_server/src/generated/shopping/reminder.dart'
-    as _i17;
-import 'package:recipe_butler_server/src/generated/shopping/shopping_list.dart'
-    as _i18;
-import 'package:recipe_butler_server/src/generated/shopping/shopping_item.dart'
-    as _i19;
-import 'package:recipe_butler_server/src/generated/shopping/task_message.dart'
     as _i20;
+import 'package:recipe_butler_server/src/generated/shopping/shopping_list.dart'
+    as _i21;
+import 'package:recipe_butler_server/src/generated/shopping/shopping_item.dart'
+    as _i22;
+import 'package:recipe_butler_server/src/generated/shopping/task_message.dart'
+    as _i23;
+export 'ai/butler_reminder.dart';
+export 'ai/butler_shopping.dart';
+export 'ai/butler_suggestion.dart';
 export 'greetings/greeting.dart';
 export 'recipes/ingredient.dart';
 export 'recipes/recipe.dart';
@@ -721,96 +727,126 @@ class Protocol extends _i1.SerializationManagerServer {
       }
     }
 
-    if (t == _i5.Greeting) {
-      return _i5.Greeting.fromJson(data) as T;
+    if (t == _i5.ButlerReminder) {
+      return _i5.ButlerReminder.fromJson(data) as T;
     }
-    if (t == _i6.Ingredient) {
-      return _i6.Ingredient.fromJson(data) as T;
+    if (t == _i6.ButlerShopping) {
+      return _i6.ButlerShopping.fromJson(data) as T;
     }
-    if (t == _i7.Recipe) {
-      return _i7.Recipe.fromJson(data) as T;
+    if (t == _i7.ButlerSuggestion) {
+      return _i7.ButlerSuggestion.fromJson(data) as T;
     }
-    if (t == _i8.RecipeStep) {
-      return _i8.RecipeStep.fromJson(data) as T;
+    if (t == _i8.Greeting) {
+      return _i8.Greeting.fromJson(data) as T;
     }
-    if (t == _i9.Invite) {
-      return _i9.Invite.fromJson(data) as T;
+    if (t == _i9.Ingredient) {
+      return _i9.Ingredient.fromJson(data) as T;
     }
-    if (t == _i10.Reminder) {
-      return _i10.Reminder.fromJson(data) as T;
+    if (t == _i10.Recipe) {
+      return _i10.Recipe.fromJson(data) as T;
     }
-    if (t == _i11.ShoppingItem) {
-      return _i11.ShoppingItem.fromJson(data) as T;
+    if (t == _i11.RecipeStep) {
+      return _i11.RecipeStep.fromJson(data) as T;
     }
-    if (t == _i12.ShoppingList) {
-      return _i12.ShoppingList.fromJson(data) as T;
+    if (t == _i12.Invite) {
+      return _i12.Invite.fromJson(data) as T;
     }
-    if (t == _i13.ShoppingListEvent) {
-      return _i13.ShoppingListEvent.fromJson(data) as T;
+    if (t == _i13.Reminder) {
+      return _i13.Reminder.fromJson(data) as T;
     }
-    if (t == _i14.ShoppingListMember) {
-      return _i14.ShoppingListMember.fromJson(data) as T;
+    if (t == _i14.ShoppingItem) {
+      return _i14.ShoppingItem.fromJson(data) as T;
     }
-    if (t == _i15.TaskMessage) {
-      return _i15.TaskMessage.fromJson(data) as T;
+    if (t == _i15.ShoppingList) {
+      return _i15.ShoppingList.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i5.Greeting?>()) {
-      return (data != null ? _i5.Greeting.fromJson(data) : null) as T;
+    if (t == _i16.ShoppingListEvent) {
+      return _i16.ShoppingListEvent.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i6.Ingredient?>()) {
-      return (data != null ? _i6.Ingredient.fromJson(data) : null) as T;
+    if (t == _i17.ShoppingListMember) {
+      return _i17.ShoppingListMember.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i7.Recipe?>()) {
-      return (data != null ? _i7.Recipe.fromJson(data) : null) as T;
+    if (t == _i18.TaskMessage) {
+      return _i18.TaskMessage.fromJson(data) as T;
     }
-    if (t == _i1.getType<_i8.RecipeStep?>()) {
-      return (data != null ? _i8.RecipeStep.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i5.ButlerReminder?>()) {
+      return (data != null ? _i5.ButlerReminder.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i9.Invite?>()) {
-      return (data != null ? _i9.Invite.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i6.ButlerShopping?>()) {
+      return (data != null ? _i6.ButlerShopping.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i10.Reminder?>()) {
-      return (data != null ? _i10.Reminder.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i7.ButlerSuggestion?>()) {
+      return (data != null ? _i7.ButlerSuggestion.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i11.ShoppingItem?>()) {
-      return (data != null ? _i11.ShoppingItem.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i8.Greeting?>()) {
+      return (data != null ? _i8.Greeting.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i12.ShoppingList?>()) {
-      return (data != null ? _i12.ShoppingList.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i9.Ingredient?>()) {
+      return (data != null ? _i9.Ingredient.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i13.ShoppingListEvent?>()) {
-      return (data != null ? _i13.ShoppingListEvent.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i10.Recipe?>()) {
+      return (data != null ? _i10.Recipe.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i14.ShoppingListMember?>()) {
-      return (data != null ? _i14.ShoppingListMember.fromJson(data) : null)
+    if (t == _i1.getType<_i11.RecipeStep?>()) {
+      return (data != null ? _i11.RecipeStep.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i12.Invite?>()) {
+      return (data != null ? _i12.Invite.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i13.Reminder?>()) {
+      return (data != null ? _i13.Reminder.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i14.ShoppingItem?>()) {
+      return (data != null ? _i14.ShoppingItem.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i15.ShoppingList?>()) {
+      return (data != null ? _i15.ShoppingList.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i16.ShoppingListEvent?>()) {
+      return (data != null ? _i16.ShoppingListEvent.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i17.ShoppingListMember?>()) {
+      return (data != null ? _i17.ShoppingListMember.fromJson(data) : null)
           as T;
     }
-    if (t == _i1.getType<_i15.TaskMessage?>()) {
-      return (data != null ? _i15.TaskMessage.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i18.TaskMessage?>()) {
+      return (data != null ? _i18.TaskMessage.fromJson(data) : null) as T;
     }
-    if (t == List<_i16.Recipe>) {
-      return (data as List).map((e) => deserialize<_i16.Recipe>(e)).toList()
-          as T;
-    }
-    if (t == List<_i17.Reminder>) {
-      return (data as List).map((e) => deserialize<_i17.Reminder>(e)).toList()
-          as T;
-    }
-    if (t == List<_i18.ShoppingList>) {
+    if (t == List<_i6.ButlerShopping>) {
       return (data as List)
-              .map((e) => deserialize<_i18.ShoppingList>(e))
+              .map((e) => deserialize<_i6.ButlerShopping>(e))
               .toList()
           as T;
     }
-    if (t == List<_i19.ShoppingItem>) {
+    if (t == List<_i5.ButlerReminder>) {
       return (data as List)
-              .map((e) => deserialize<_i19.ShoppingItem>(e))
+              .map((e) => deserialize<_i5.ButlerReminder>(e))
               .toList()
           as T;
     }
-    if (t == List<_i20.TaskMessage>) {
+    if (t == List<_i19.Recipe>) {
+      return (data as List).map((e) => deserialize<_i19.Recipe>(e)).toList()
+          as T;
+    }
+    if (t == List<_i20.Reminder>) {
+      return (data as List).map((e) => deserialize<_i20.Reminder>(e)).toList()
+          as T;
+    }
+    if (t == List<_i21.ShoppingList>) {
       return (data as List)
-              .map((e) => deserialize<_i20.TaskMessage>(e))
+              .map((e) => deserialize<_i21.ShoppingList>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i22.ShoppingItem>) {
+      return (data as List)
+              .map((e) => deserialize<_i22.ShoppingItem>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i23.TaskMessage>) {
+      return (data as List)
+              .map((e) => deserialize<_i23.TaskMessage>(e))
               .toList()
           as T;
     }
@@ -828,17 +864,20 @@ class Protocol extends _i1.SerializationManagerServer {
 
   static String? getClassNameForType(Type type) {
     return switch (type) {
-      _i5.Greeting => 'Greeting',
-      _i6.Ingredient => 'Ingredient',
-      _i7.Recipe => 'Recipe',
-      _i8.RecipeStep => 'RecipeStep',
-      _i9.Invite => 'Invite',
-      _i10.Reminder => 'Reminder',
-      _i11.ShoppingItem => 'ShoppingItem',
-      _i12.ShoppingList => 'ShoppingList',
-      _i13.ShoppingListEvent => 'ShoppingListEvent',
-      _i14.ShoppingListMember => 'ShoppingListMember',
-      _i15.TaskMessage => 'TaskMessage',
+      _i5.ButlerReminder => 'ButlerReminder',
+      _i6.ButlerShopping => 'ButlerShopping',
+      _i7.ButlerSuggestion => 'ButlerSuggestion',
+      _i8.Greeting => 'Greeting',
+      _i9.Ingredient => 'Ingredient',
+      _i10.Recipe => 'Recipe',
+      _i11.RecipeStep => 'RecipeStep',
+      _i12.Invite => 'Invite',
+      _i13.Reminder => 'Reminder',
+      _i14.ShoppingItem => 'ShoppingItem',
+      _i15.ShoppingList => 'ShoppingList',
+      _i16.ShoppingListEvent => 'ShoppingListEvent',
+      _i17.ShoppingListMember => 'ShoppingListMember',
+      _i18.TaskMessage => 'TaskMessage',
       _ => null,
     };
   }
@@ -856,27 +895,33 @@ class Protocol extends _i1.SerializationManagerServer {
     }
 
     switch (data) {
-      case _i5.Greeting():
+      case _i5.ButlerReminder():
+        return 'ButlerReminder';
+      case _i6.ButlerShopping():
+        return 'ButlerShopping';
+      case _i7.ButlerSuggestion():
+        return 'ButlerSuggestion';
+      case _i8.Greeting():
         return 'Greeting';
-      case _i6.Ingredient():
+      case _i9.Ingredient():
         return 'Ingredient';
-      case _i7.Recipe():
+      case _i10.Recipe():
         return 'Recipe';
-      case _i8.RecipeStep():
+      case _i11.RecipeStep():
         return 'RecipeStep';
-      case _i9.Invite():
+      case _i12.Invite():
         return 'Invite';
-      case _i10.Reminder():
+      case _i13.Reminder():
         return 'Reminder';
-      case _i11.ShoppingItem():
+      case _i14.ShoppingItem():
         return 'ShoppingItem';
-      case _i12.ShoppingList():
+      case _i15.ShoppingList():
         return 'ShoppingList';
-      case _i13.ShoppingListEvent():
+      case _i16.ShoppingListEvent():
         return 'ShoppingListEvent';
-      case _i14.ShoppingListMember():
+      case _i17.ShoppingListMember():
         return 'ShoppingListMember';
-      case _i15.TaskMessage():
+      case _i18.TaskMessage():
         return 'TaskMessage';
     }
     className = _i2.Protocol().getClassNameForObject(data);
@@ -900,38 +945,47 @@ class Protocol extends _i1.SerializationManagerServer {
     if (dataClassName is! String) {
       return super.deserializeByClassName(data);
     }
+    if (dataClassName == 'ButlerReminder') {
+      return deserialize<_i5.ButlerReminder>(data['data']);
+    }
+    if (dataClassName == 'ButlerShopping') {
+      return deserialize<_i6.ButlerShopping>(data['data']);
+    }
+    if (dataClassName == 'ButlerSuggestion') {
+      return deserialize<_i7.ButlerSuggestion>(data['data']);
+    }
     if (dataClassName == 'Greeting') {
-      return deserialize<_i5.Greeting>(data['data']);
+      return deserialize<_i8.Greeting>(data['data']);
     }
     if (dataClassName == 'Ingredient') {
-      return deserialize<_i6.Ingredient>(data['data']);
+      return deserialize<_i9.Ingredient>(data['data']);
     }
     if (dataClassName == 'Recipe') {
-      return deserialize<_i7.Recipe>(data['data']);
+      return deserialize<_i10.Recipe>(data['data']);
     }
     if (dataClassName == 'RecipeStep') {
-      return deserialize<_i8.RecipeStep>(data['data']);
+      return deserialize<_i11.RecipeStep>(data['data']);
     }
     if (dataClassName == 'Invite') {
-      return deserialize<_i9.Invite>(data['data']);
+      return deserialize<_i12.Invite>(data['data']);
     }
     if (dataClassName == 'Reminder') {
-      return deserialize<_i10.Reminder>(data['data']);
+      return deserialize<_i13.Reminder>(data['data']);
     }
     if (dataClassName == 'ShoppingItem') {
-      return deserialize<_i11.ShoppingItem>(data['data']);
+      return deserialize<_i14.ShoppingItem>(data['data']);
     }
     if (dataClassName == 'ShoppingList') {
-      return deserialize<_i12.ShoppingList>(data['data']);
+      return deserialize<_i15.ShoppingList>(data['data']);
     }
     if (dataClassName == 'ShoppingListEvent') {
-      return deserialize<_i13.ShoppingListEvent>(data['data']);
+      return deserialize<_i16.ShoppingListEvent>(data['data']);
     }
     if (dataClassName == 'ShoppingListMember') {
-      return deserialize<_i14.ShoppingListMember>(data['data']);
+      return deserialize<_i17.ShoppingListMember>(data['data']);
     }
     if (dataClassName == 'TaskMessage') {
-      return deserialize<_i15.TaskMessage>(data['data']);
+      return deserialize<_i18.TaskMessage>(data['data']);
     }
     if (dataClassName.startsWith('serverpod.')) {
       data['className'] = dataClassName.substring(10);
@@ -969,24 +1023,24 @@ class Protocol extends _i1.SerializationManagerServer {
       }
     }
     switch (t) {
-      case _i6.Ingredient:
-        return _i6.Ingredient.t;
-      case _i7.Recipe:
-        return _i7.Recipe.t;
-      case _i8.RecipeStep:
-        return _i8.RecipeStep.t;
-      case _i9.Invite:
-        return _i9.Invite.t;
-      case _i10.Reminder:
-        return _i10.Reminder.t;
-      case _i11.ShoppingItem:
-        return _i11.ShoppingItem.t;
-      case _i12.ShoppingList:
-        return _i12.ShoppingList.t;
-      case _i14.ShoppingListMember:
-        return _i14.ShoppingListMember.t;
-      case _i15.TaskMessage:
-        return _i15.TaskMessage.t;
+      case _i9.Ingredient:
+        return _i9.Ingredient.t;
+      case _i10.Recipe:
+        return _i10.Recipe.t;
+      case _i11.RecipeStep:
+        return _i11.RecipeStep.t;
+      case _i12.Invite:
+        return _i12.Invite.t;
+      case _i13.Reminder:
+        return _i13.Reminder.t;
+      case _i14.ShoppingItem:
+        return _i14.ShoppingItem.t;
+      case _i15.ShoppingList:
+        return _i15.ShoppingList.t;
+      case _i17.ShoppingListMember:
+        return _i17.ShoppingListMember.t;
+      case _i18.TaskMessage:
+        return _i18.TaskMessage.t;
     }
     return null;
   }

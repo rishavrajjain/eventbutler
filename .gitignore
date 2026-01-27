@@ -40,6 +40,7 @@ migrate_working_dir/
 .idea/
 recipebutler-firebase.json
 recipe_butler_server/lib/src/config/firebase_credentials.dart
+recipe_butler_server/config/passwords.yaml
 
 # Symbolication related
 app.*.symbols

@@ -14,23 +14,25 @@
 import 'package:serverpod_test/serverpod_test.dart' as _i1;
 import 'package:serverpod/serverpod.dart' as _i2;
 import 'dart:async' as _i3;
-import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
+import 'package:recipe_butler_server/src/generated/ai/butler_suggestion.dart'
     as _i4;
-import 'package:recipe_butler_server/src/generated/greetings/greeting.dart'
+import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i5;
-import 'package:recipe_butler_server/src/generated/recipes/recipe.dart' as _i6;
+import 'package:recipe_butler_server/src/generated/greetings/greeting.dart'
+    as _i6;
+import 'package:recipe_butler_server/src/generated/recipes/recipe.dart' as _i7;
 import 'package:recipe_butler_server/src/generated/shopping/reminder.dart'
-    as _i7;
-import 'package:recipe_butler_server/src/generated/shopping/shopping_list.dart'
     as _i8;
-import 'package:recipe_butler_server/src/generated/shopping/shopping_item.dart'
+import 'package:recipe_butler_server/src/generated/shopping/shopping_list.dart'
     as _i9;
-import 'package:recipe_butler_server/src/generated/shopping/shopping_list_event.dart'
+import 'package:recipe_butler_server/src/generated/shopping/shopping_item.dart'
     as _i10;
-import 'package:recipe_butler_server/src/generated/shopping/invite.dart'
+import 'package:recipe_butler_server/src/generated/shopping/shopping_list_event.dart'
     as _i11;
-import 'package:recipe_butler_server/src/generated/shopping/task_message.dart'
+import 'package:recipe_butler_server/src/generated/shopping/invite.dart'
     as _i12;
+import 'package:recipe_butler_server/src/generated/shopping/task_message.dart'
+    as _i13;
 import 'package:recipe_butler_server/src/generated/protocol.dart';
 import 'package:recipe_butler_server/src/generated/endpoints.dart';
 export 'package:serverpod_test/serverpod_test_public_exports.dart';
@@ -138,6 +140,8 @@ void withServerpod(
 }
 
 class TestEndpoints {
+  late final _AiEndpoint ai;
+
   late final _EmailIdpEndpoint emailIdp;
 
   late final _FirebaseIdpEndpoint firebaseIdp;
@@ -166,6 +170,10 @@ class _InternalTestEndpoints extends TestEndpoints
     _i2.SerializationManager serializationManager,
     _i2.EndpointDispatch endpoints,
   ) {
+    ai = _AiEndpoint(
+      endpoints,
+      serializationManager,
+    );
     emailIdp = _EmailIdpEndpoint(
       endpoints,
       serializationManager,
@@ -209,6 +217,54 @@ class _InternalTestEndpoints extends TestEndpoints
   }
 }
 
+class _AiEndpoint {
+  _AiEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _i2.EndpointDispatch _endpointDispatch;
+
+  final _i2.SerializationManager _serializationManager;
+
+  _i3.Future<_i4.ButlerSuggestion> suggest(
+    _i1.TestSessionBuilder sessionBuilder,
+    String userKey,
+    int listId,
+    String prompt,
+  ) async {
+    return _i1.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _i1.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'ai',
+            method: 'suggest',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'ai',
+          methodName: 'suggest',
+          parameters: _i1.testObjectToJson({
+            'userKey': userKey,
+            'listId': listId,
+            'prompt': prompt,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _i3.Future<_i4.ButlerSuggestion>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
 class _EmailIdpEndpoint {
   _EmailIdpEndpoint(
     this._endpointDispatch,
@@ -219,7 +275,7 @@ class _EmailIdpEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i4.AuthSuccess> login(
+  _i3.Future<_i5.AuthSuccess> login(
     _i1.TestSessionBuilder sessionBuilder, {
     required String email,
     required String password,
@@ -246,7 +302,7 @@ class _EmailIdpEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i4.AuthSuccess>);
+                as _i3.Future<_i5.AuthSuccess>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -320,7 +376,7 @@ class _EmailIdpEndpoint {
     });
   }
 
-  _i3.Future<_i4.AuthSuccess> finishRegistration(
+  _i3.Future<_i5.AuthSuccess> finishRegistration(
     _i1.TestSessionBuilder sessionBuilder, {
     required String registrationToken,
     required String password,
@@ -347,7 +403,7 @@ class _EmailIdpEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i4.AuthSuccess>);
+                as _i3.Future<_i5.AuthSuccess>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -467,7 +523,7 @@ class _FirebaseIdpEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i4.AuthSuccess> login(
+  _i3.Future<_i5.AuthSuccess> login(
     _i1.TestSessionBuilder sessionBuilder, {
     required String idToken,
   }) async {
@@ -490,7 +546,7 @@ class _FirebaseIdpEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i4.AuthSuccess>);
+                as _i3.Future<_i5.AuthSuccess>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -509,7 +565,7 @@ class _JwtRefreshEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i4.AuthSuccess> refreshAccessToken(
+  _i3.Future<_i5.AuthSuccess> refreshAccessToken(
     _i1.TestSessionBuilder sessionBuilder, {
     required String refreshToken,
   }) async {
@@ -532,7 +588,7 @@ class _JwtRefreshEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i4.AuthSuccess>);
+                as _i3.Future<_i5.AuthSuccess>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -592,7 +648,7 @@ class _GreetingEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i5.Greeting> hello(
+  _i3.Future<_i6.Greeting> hello(
     _i1.TestSessionBuilder sessionBuilder,
     String name,
   ) async {
@@ -615,7 +671,7 @@ class _GreetingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i5.Greeting>);
+                as _i3.Future<_i6.Greeting>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -634,7 +690,7 @@ class _ImportEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i6.Recipe> importRecipeFromUrl(
+  _i3.Future<_i7.Recipe> importRecipeFromUrl(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     String url,
@@ -661,7 +717,7 @@ class _ImportEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.Recipe>);
+                as _i3.Future<_i7.Recipe>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -680,7 +736,7 @@ class _RecipeEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i6.Recipe> createRecipe(
+  _i3.Future<_i7.Recipe> createRecipe(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     String title, {
@@ -709,7 +765,7 @@ class _RecipeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.Recipe>);
+                as _i3.Future<_i7.Recipe>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -717,7 +773,7 @@ class _RecipeEndpoint {
     });
   }
 
-  _i3.Future<List<_i6.Recipe>> listMyRecipes(
+  _i3.Future<List<_i7.Recipe>> listMyRecipes(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
   ) async {
@@ -740,7 +796,7 @@ class _RecipeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i6.Recipe>>);
+                as _i3.Future<List<_i7.Recipe>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -748,7 +804,7 @@ class _RecipeEndpoint {
     });
   }
 
-  _i3.Future<_i6.Recipe?> getRecipe(
+  _i3.Future<_i7.Recipe?> getRecipe(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int recipeId,
@@ -775,7 +831,7 @@ class _RecipeEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i6.Recipe?>);
+                as _i3.Future<_i7.Recipe?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -829,7 +885,7 @@ class _RemindersEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i7.Reminder>> listMyReminders(
+  _i3.Future<List<_i8.Reminder>> listMyReminders(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey, {
     DateTime? after,
@@ -856,7 +912,7 @@ class _RemindersEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i7.Reminder>>);
+                as _i3.Future<List<_i8.Reminder>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -864,7 +920,7 @@ class _RemindersEndpoint {
     });
   }
 
-  _i3.Future<List<_i7.Reminder>> listRemindersForList(
+  _i3.Future<List<_i8.Reminder>> listRemindersForList(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
@@ -891,7 +947,7 @@ class _RemindersEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i7.Reminder>>);
+                as _i3.Future<List<_i8.Reminder>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -899,7 +955,7 @@ class _RemindersEndpoint {
     });
   }
 
-  _i3.Future<_i7.Reminder> addReminder(
+  _i3.Future<_i8.Reminder> addReminder(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
@@ -932,7 +988,7 @@ class _RemindersEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i7.Reminder>);
+                as _i3.Future<_i8.Reminder>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -940,7 +996,7 @@ class _RemindersEndpoint {
     });
   }
 
-  _i3.Future<_i7.Reminder?> toggleReminder(
+  _i3.Future<_i8.Reminder?> toggleReminder(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int reminderId,
@@ -969,7 +1025,7 @@ class _RemindersEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i7.Reminder?>);
+                as _i3.Future<_i8.Reminder?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1023,7 +1079,7 @@ class _ShoppingEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<_i8.ShoppingList> createShoppingList(
+  _i3.Future<_i9.ShoppingList> createShoppingList(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     String name,
@@ -1050,7 +1106,7 @@ class _ShoppingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i8.ShoppingList>);
+                as _i3.Future<_i9.ShoppingList>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1058,7 +1114,7 @@ class _ShoppingEndpoint {
     });
   }
 
-  _i3.Future<List<_i8.ShoppingList>> listMyShoppingLists(
+  _i3.Future<List<_i9.ShoppingList>> listMyShoppingLists(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
   ) async {
@@ -1081,7 +1137,7 @@ class _ShoppingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i8.ShoppingList>>);
+                as _i3.Future<List<_i9.ShoppingList>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1089,7 +1145,7 @@ class _ShoppingEndpoint {
     });
   }
 
-  _i3.Future<_i9.ShoppingItem> addShoppingItem(
+  _i3.Future<_i10.ShoppingItem> addShoppingItem(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
@@ -1120,7 +1176,7 @@ class _ShoppingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i9.ShoppingItem>);
+                as _i3.Future<_i10.ShoppingItem>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1128,7 +1184,7 @@ class _ShoppingEndpoint {
     });
   }
 
-  _i3.Future<_i9.ShoppingItem?> toggleShoppingItem(
+  _i3.Future<_i10.ShoppingItem?> toggleShoppingItem(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int itemId,
@@ -1157,7 +1213,7 @@ class _ShoppingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i9.ShoppingItem?>);
+                as _i3.Future<_i10.ShoppingItem?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1165,7 +1221,7 @@ class _ShoppingEndpoint {
     });
   }
 
-  _i3.Future<_i9.ShoppingItem?> updateShoppingItemCategory(
+  _i3.Future<_i10.ShoppingItem?> updateShoppingItemCategory(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int itemId,
@@ -1194,7 +1250,7 @@ class _ShoppingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i9.ShoppingItem?>);
+                as _i3.Future<_i10.ShoppingItem?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1202,7 +1258,7 @@ class _ShoppingEndpoint {
     });
   }
 
-  _i3.Future<List<_i9.ShoppingItem>> listShoppingItems(
+  _i3.Future<List<_i10.ShoppingItem>> listShoppingItems(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
@@ -1229,7 +1285,7 @@ class _ShoppingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i9.ShoppingItem>>);
+                as _i3.Future<List<_i10.ShoppingItem>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1237,13 +1293,13 @@ class _ShoppingEndpoint {
     });
   }
 
-  _i3.Stream<_i10.ShoppingListEvent> subscribeShoppingList(
+  _i3.Stream<_i11.ShoppingListEvent> subscribeShoppingList(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
   ) {
     var _localTestStreamManager =
-        _i1.TestStreamManager<_i10.ShoppingListEvent>();
+        _i1.TestStreamManager<_i11.ShoppingListEvent>();
     _i1.callStreamFunctionAndHandleExceptions(
       () async {
         var _localUniqueSession =
@@ -1274,7 +1330,7 @@ class _ShoppingEndpoint {
     return _localTestStreamManager.outputStreamController.stream;
   }
 
-  _i3.Future<_i11.Invite> createInvite(
+  _i3.Future<_i12.Invite> createInvite(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
@@ -1303,7 +1359,7 @@ class _ShoppingEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i11.Invite>);
+                as _i3.Future<_i12.Invite>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1357,7 +1413,7 @@ class _TasksEndpoint {
 
   final _i2.SerializationManager _serializationManager;
 
-  _i3.Future<List<_i12.TaskMessage>> listTasks(
+  _i3.Future<List<_i13.TaskMessage>> listTasks(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
@@ -1384,7 +1440,7 @@ class _TasksEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<List<_i12.TaskMessage>>);
+                as _i3.Future<List<_i13.TaskMessage>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1392,7 +1448,7 @@ class _TasksEndpoint {
     });
   }
 
-  _i3.Future<_i12.TaskMessage> addTask(
+  _i3.Future<_i13.TaskMessage> addTask(
     _i1.TestSessionBuilder sessionBuilder,
     String userKey,
     int listId,
@@ -1421,7 +1477,7 @@ class _TasksEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _i3.Future<_i12.TaskMessage>);
+                as _i3.Future<_i13.TaskMessage>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

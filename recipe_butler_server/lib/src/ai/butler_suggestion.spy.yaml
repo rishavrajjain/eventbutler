@@ -1,0 +1,5 @@
+class: ButlerSuggestion
+fields:
+  message: String
+  shopping: List<ButlerShopping>
+  reminders: List<ButlerReminder>

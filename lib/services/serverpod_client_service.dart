@@ -30,6 +30,7 @@ class ServerpodClientService {
     // Serverpod will lazily try to connect on first stream subscription and
     // failures can leave listeners silent until the user navigates away.
     try {
+      // ignore: deprecated_member_use
       await client.openStreamingConnection();
     } catch (e) {
       // Keep the app usable even if streaming boot fails; providers will

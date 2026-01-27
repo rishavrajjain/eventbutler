@@ -82,7 +82,7 @@ class TasksProvider extends ChangeNotifier {
       final stream = _taskService.subscribeToList(_userKey, listId);
       final sub = stream.listen(
         (event) => _handleEvent(listId, event),
-        onError: (e, __) => _handleStreamError(listId, e),
+        onError: (e, _) => _handleStreamError(listId, e),
         onDone: () => _handleStreamDone(listId),
       );
       _subscriptions[listId] = sub;

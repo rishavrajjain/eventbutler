@@ -212,6 +212,12 @@ Before stopping:
 - Never edit generated code.
 - Keep all server/client/flutter package versions aligned.
 - Every endpoint must check permissions for shared shopping lists.
+- AI (Butler):
+  - Model: gpt-5-mini. Use Responses API first, fallback to Chat Completions.
+  - Supported params: no `temperature`; use `max_output_tokens` / `max_completion_tokens` (set to 600).
+  - Prompt: concise, high-value replies; JSON only.
+  - Errors: return friendly message on non-200 instead of throwing 500; check Cloud logs if issues.
+- **API URL (CRITICAL)**: Always use hardcoded `https://recipebutler.api.serverpod.space/` (the `.api` subdomain). Never derive URL from `Uri.base.origin` on Serverpod Cloud – the web app is served from a different subdomain than the API.
 
 ---
 
@@ -239,7 +245,7 @@ scloud deployment show
 
 ## 4) Cloud-first development workflow (least hassle)
 We will not run Postgres locally.
-
+To check BE logs: cd /Users/rishavrajjain/code/recipe_butler && scloud log --project recipebutler --since 5m --limit 120
 ### Initial setup (one-time)
 - Claim hackathon Cloud plan: https://serverpod.dev/flutterbutler25
 - Install CLIs:

@@ -29,8 +29,15 @@ class AuthProvider extends ChangeNotifier {
 
   static const _defaultBaseUrl = 'https://recipebutler.api.serverpod.space/';
 
+  String _resolveBaseUrl() {
+    // Always use the fixed Cloud API endpoint.
+    // The web app is served from recipebutler.serverpod.space, but the
+    // Serverpod RPC/WS endpoints live on recipebutler.api.serverpod.space.
+    return _defaultBaseUrl;
+  }
+
   Future<void> _ensureClient() async {
-    await _clientService.init(baseUrl: _defaultBaseUrl);
+    await _clientService.init(baseUrl: _resolveBaseUrl());
     if (!_initialized) {
       await _clientService.authManager.initialize();
       _clientService.authManager.authInfoListenable.addListener(
@@ -262,8 +269,14 @@ class AuthProvider extends ChangeNotifier {
       debugPrint(
         '[GoogleAuth] FAILED: runtimeType = ${e.runtimeType}, message = $e',
       );
-      _error = 'Google sign-in failed: $e';
-      _isAuthenticated = false;
+      // Friendly fallback in local dev: continue as guest so the app remains usable.
+      try {
+        await signInGuest();
+        _error = 'Google sign-in unavailable; continued as guest.';
+      } catch (_) {
+        _error = 'Google sign-in failed: $e';
+        _isAuthenticated = false;
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

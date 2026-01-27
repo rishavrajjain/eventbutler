@@ -16,6 +16,7 @@ Ship a demo-ready MVP fast with minimum setup hassle.
 
 Hosting:
 Serverpod Cloud only (no local Postgres, no Docker).
+After deploy, use Cloud logs for debugging. 
 
 ---
 
@@ -243,6 +244,61 @@ Before stopping:
 - Issues: None observed post-deploy; need live chat test to confirm streams.
 - Next steps: Smoke-test chat with two browsers; watch `scloud log --project recipebutler --tail` for any Redis publish errors during chat.
 
+- Date: 2026-01-27
+- What changed: Added Butler AI toggle in task chat; integrates Gemini to suggest shopping items/reminders. AI replies encoded as `[BUTLER_JSON]{...}` are rendered as action cards with add-to-cart and add-reminder buttons. New `GeminiService` calls Gemini flash with structured prompt. Build succeeded after changes.
+- Issues: AI key is inline for hackathon; move to secret if hardening. `dart format` not run (sandbox block).
+- Next steps: Live test AI flow with two browsers; consider persisting AI userId or badge; move Gemini key to env/secret.
+
+- Date: 2026-01-27
+- What changed: Ran flutter analyze (clean) and dart analyze on server (clean). Built web bundle. Deployed latest build to Serverpod Cloud (deploy id bd64732e-575c-4963-80a6-c2d0b8285d90, finished 18:41 IST).
+- Issues: Insights serviceSecret warning persists (known; Insights disabled). Gemini key still inline client-side.
+- Next steps: Promote Gemini key to cloud secret; live test AI cards + realtime add-to-cart/reminder; consider fixing serviceSecret if Insights needed.
+
+- Date: 2026-01-27
+- What changed: Verified deployment success for build 1.0.5+6.
+- Issues: None.
+- Next steps: Live test web app.
+
+- Date: 2026-01-27
+- What changed: Butler AI toggle icon switched to magic wand (no Butler logo). Client now falls back to calling Gemini directly when server returns 500, using `--dart-define=GEMINI_API_KEY=...` during `flutter run` to keep AI working in local web runs without server secrets.
+- Issues: None observed locally; fallback requires supplying the dart-define.
+- Next steps: Run `flutter run -d chrome --dart-define=GEMINI_API_KEY=your_key` to validate AI cards; consider moving key to Serverpod password/secret for cloud use.
+
+- Date: 2026-01-27
+- What changed: AI endpoints and client fallback now return a friendly Butler card instead of error when Gemini rate limits (429). Butler AI cards also use the magic-wand icon. `flutter analyze` and `dart analyze recipe_butler_server` are clean.
+- Issues: 429 still indicates quota/rate-limit; user must wait or use a higher-quota key.
+- Next steps: Validate AI card rendering after 429, monitor Cloud logs for remaining AI errors, and consider client-side throttling.
+
+- Date: 2026-01-27
+- What changed: Premium Butler AI UX overhaul. Created `OPENAI_API_KEY` secret on Serverpod Cloud. Enhanced task chat with: animated typing indicator while AI works, empty state with contextual hints, AI-mode composer (warm background, wand send button, mode banner), premium Butler cards (gradient header, shadow, "Add all" batch button for shopping, green checkmark states for added items/reminders, tappable suggestion tiles). Upgraded AI system prompts on server and client to elite event-planner persona with current UTC time context. Auto-scroll on new messages. Both analyzers clean, web build succeeded.
+- Issues: None; redeploy needed for server prompt improvements to take effect.
+- Next steps: `scloud deploy` to push updated server AI prompts; live-test AI flow end-to-end with OpenAI; verify "Add all" batch operations.
+
+- Date: 2026-01-27
+- What changed: Removed all Gemini fallbacks. Server AI endpoint now OpenAI-only with clearer logging and descriptive errors when the OpenAI response is non-200 or the key is missing. Client ButlerService no longer tries local Gemini; only local OpenAI fallback remains.
+- Issues: `dart format` on touched files failed due to Flutter engine.stamp permission (sandbox); code left formatted manually.
+- Next steps: Confirm `OPENAI_API_KEY` secret exists in Serverpod Cloud, remove any `GEMINI_API_KEY` secrets, redeploy (`scloud deploy`), and smoke-test AI chat to ensure the rate-limit message now references OpenAI only.
+
+- Date: 2026-01-27
+- What changed: Added JSON-parse guard in AiEndpoint to return a friendly message instead of 500 when OpenAI returns malformed JSON. Uploaded Firebase service account to Serverpod Cloud password store as `firebaseServiceAccountKey`. New deploy (87973a5e-b01a-4dc8-a0ed-0c57c7a92dd2) running to pick up the secret.
+- Issues: Deployment still progressing at time of note; Firebase IdP errors expected to clear once pods restart with the secret.
+- Next steps: After deploy finishes, tail logs to confirm “Firebase Service Account Key present” and that `firebaseIdp.login` no longer errors; re-test Firebase login.
+
+- Date: 2026-01-27
+- What changed: Switched OpenAI model to `gpt-5-mini` for both server AI endpoint and client local fallback.
+- Issues: None in analyzers/build; deployment in progress.
+- Next steps: Verify deploy success, smoke-test Butler AI responses with new model.
+
+- Date: 2026-01-27
+- What changed: Butler AI now calls OpenAI Responses API first, falls back to Chat Completions. Removed unsupported params for gpt-5-mini (no `temperature`; token fields: `max_output_tokens` / `max_completion_tokens`). Increased token budgets to 600 and tightened prompt to concise, high-value replies. Added graceful error messages instead of 500s on non-200 responses.
+- Issues: Insights serviceSecret warning persists (expected with Insights off).
+- Next steps: If AI errors reappear, check logs for params; ensure `OPENAI_API_KEY` quota is sufficient.
+
+- Date: 2026-01-27
+- What changed: Fixed critical auth 404 bug. The web client was deriving API URL from `Uri.base.origin`, which returned `recipebutler.serverpod.space` (web-serving domain) instead of `recipebutler.api.serverpod.space` (Serverpod API). Changed `_resolveBaseUrl()` in `auth_provider.dart` to always return the fixed `.api` subdomain URL.
+- Issues: None after fix.
+- Next steps: Always use the hardcoded API URL; never derive from browser origin on Serverpod Cloud.
+
 ### Serverpod
 - Never edit generated code.
 - Keep all server/client/flutter package versions aligned.
@@ -274,7 +330,7 @@ scloud deployment show
 
 ## 4) Cloud-first development workflow (least hassle)
 We will not run Postgres locally.
-
+To check BE logs: cd /Users/rishavrajjain/code/recipe_butler && scloud log --project recipebutler --since 5m --limit 120
 ### Initial setup (one-time)
 - Claim hackathon Cloud plan: https://serverpod.dev/flutterbutler25
 - Install CLIs:
