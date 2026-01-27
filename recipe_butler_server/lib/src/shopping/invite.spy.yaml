@@ -1,0 +1,14 @@
+class: Invite
+table: invite
+fields:
+  targetType: String
+  targetId: int
+  token: String
+  role: String
+  expiresAt: DateTime?
+  acceptedAt: DateTime?
+indexes:
+  invite_token_idx:
+    fields: token
+    type: btree
+    unique: true

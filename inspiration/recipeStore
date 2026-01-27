@@ -1,0 +1,1075 @@
+//
+//  RecipeStore.swift
+//  souschef
+//
+//  Main data store for recipes, collections, and shopping list
+//
+
+import SwiftUI
+import Foundation
+import Combine
+import FirebaseAuth
+
+// MARK: - API Configuration
+enum APIConfig {
+    static let baseURL = "https://recipewallet.app/api"
+    static let importTimeout: TimeInterval = 120
+
+    static func endpoint(_ path: String) -> URL {
+        return URL(string: "\(baseURL)/\(path)")!
+    }
+}
+
+// MARK: - API Response Models
+private struct APIResponse: Decodable {
+    let success: Bool
+    let recipe: APIRecipe?
+    let error: String?
+    let platform: String?
+    let promptVersion: Int?
+}
+
+private struct APIIngredient: Decodable {
+    let id: String?
+    let name: String
+    let quantity: String?
+    let unit: String?
+    let category: String?
+    let notes: String?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        // Try decoding as a plain string first (legacy format)
+        if let stringValue = try? container.decode(String.self) {
+            self.id = nil
+            self.name = stringValue
+            self.quantity = nil
+            self.unit = nil
+            self.category = nil
+            self.notes = nil
+        } else {
+            // Try decoding as a dictionary (new rich format)
+            let keyedContainer = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = try keyedContainer.decodeIfPresent(String.self, forKey: .id)
+            self.name = try keyedContainer.decode(String.self, forKey: .name)
+            self.quantity = try keyedContainer.decodeIfPresent(String.self, forKey: .quantity)
+            self.unit = try keyedContainer.decodeIfPresent(String.self, forKey: .unit)
+            self.category = try keyedContainer.decodeIfPresent(String.self, forKey: .category)
+            self.notes = try keyedContainer.decodeIfPresent(String.self, forKey: .notes)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, quantity, unit, category, notes
+    }
+
+    /// Builds a display string like "2 cups flour (sifted)"
+    var displayName: String {
+        var parts: [String] = []
+
+        if let qty = quantity, !qty.isEmpty {
+            parts.append(qty)
+        }
+        if let u = unit, !u.isEmpty {
+            parts.append(u)
+        }
+        parts.append(name)
+
+        var result = parts.joined(separator: " ")
+
+        if let n = notes, !n.isEmpty {
+            result += " (\(n))"
+        }
+
+        return result
+    }
+
+    func asIngredient() -> Ingredient {
+        let ingredientCategory = IngredientCategory(rawValue: category ?? "Other") ?? .other
+        return Ingredient(name: displayName, category: ingredientCategory)
+    }
+}
+
+private struct APIStep: Decodable {
+    let id: String?
+    let stepNumber: Int?
+    let instruction: String
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        // Try decoding as a plain string first (legacy format)
+        if let stringValue = try? container.decode(String.self) {
+            self.id = nil
+            self.stepNumber = nil
+            self.instruction = stringValue
+        } else {
+            // Try decoding as a dictionary (new rich format)
+            let keyedContainer = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = try keyedContainer.decodeIfPresent(String.self, forKey: .id)
+            self.stepNumber = try keyedContainer.decodeIfPresent(Int.self, forKey: .stepNumber)
+            self.instruction = try keyedContainer.decode(String.self, forKey: .instruction)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, stepNumber, instruction
+    }
+}
+
+private struct APIRecipe: Decodable {
+    let title: String
+    let description: String?
+    let image: String?           // New primary image field
+    let imageUrl: String?        // Legacy fallback
+    let thumbnailUrl: String?    // Legacy fallback
+    let ingredients: [APIIngredient]?
+    let prepTime: Int?
+    let cookTime: Int?
+    let difficulty: String?
+    let nutrition: Nutrition?
+    let servings: Int?           // New field - maps to nutrition.portions
+    let extractedFrom: String?   // Legacy field (response-level platform takes precedence)
+    let creatorHandle: String?
+    let creatorName: String?
+    let originalUrl: String?
+    let steps: [APIStep]?        // Now supports both String and APIStep objects
+    let categories: [String]?    // New field - merged into tags
+    let tags: [String]?          // New field
+
+    func asRecipe(platform: String?) -> Recipe {
+        let convertedIngredients = (ingredients ?? []).map { $0.asIngredient() }
+
+        // Priority: image > thumbnailUrl > imageUrl
+        let finalImageUrl: String = {
+            if let img = image, !img.trimmingCharacters(in: .whitespaces).isEmpty {
+                return img
+            } else if let thumbnail = thumbnailUrl, !thumbnail.trimmingCharacters(in: .whitespaces).isEmpty {
+                return thumbnail
+            } else if let imgUrl = imageUrl, !imgUrl.trimmingCharacters(in: .whitespaces).isEmpty {
+                return imgUrl
+            } else {
+                return ""
+            }
+        }()
+
+        // Extract step instructions
+        let stepStrings = (steps ?? [])
+            .map { $0.instruction }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        // Merge categories and tags
+        var allTags: [String] = []
+        if let cats = categories {
+            allTags.append(contentsOf: cats)
+        }
+        if let t = tags {
+            allTags.append(contentsOf: t)
+        }
+
+        // Use platform from response level, fallback to recipe-level extractedFrom
+        let finalPlatform = platform ?? extractedFrom
+
+        // Build nutrition, using servings if portions not set
+        let finalNutrition: Nutrition? = {
+            if var n = nutrition {
+                if n.portions == nil, let s = servings {
+                    n = Nutrition(calories: n.calories, protein: n.protein, carbs: n.carbs, fats: n.fats, portions: s)
+                }
+                return n
+            } else if let s = servings {
+                return Nutrition(calories: nil, protein: nil, carbs: nil, fats: nil, portions: s)
+            }
+            return nil
+        }()
+
+        return Recipe(
+            name: title,
+            description: description ?? "Recipe from Reel",
+            imageUrl: finalImageUrl,
+            prepTime: prepTime,
+            cookTime: cookTime,
+            difficulty: RecipeDifficulty(rawValue: difficulty ?? "Medium"),
+            nutrition: finalNutrition,
+            ingredients: convertedIngredients,
+            steps: stepStrings,
+            tags: allTags,
+            isFromReel: true,
+            extractedFrom: finalPlatform,
+            creatorHandle: creatorHandle,
+            creatorName: creatorName,
+            originalUrl: self.originalUrl
+        )
+    }
+}
+
+// MARK: - API Service
+class RecipeAPIService {
+    func importRecipeFromReel(reelURL: String) async throws -> Recipe {
+        let importURL = APIConfig.endpoint("import-recipe")
+
+        var request = URLRequest(url: importURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = APIConfig.importTimeout
+
+        do {
+            request.httpBody = try JSONEncoder().encode(["url": reelURL])
+        } catch {
+            throw APIError.serverError("Failed to create request: \(error.localizedDescription)")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.serverError("Invalid server response")
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 500 {
+                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let detail = errorData["detail"] as? String {
+                    throw APIError.serverError(detail)
+                } else {
+                    throw APIError.serverError("Failed to extract a valid recipe from the provided link. The content may not be a recipe or the website is not supported.")
+                }
+            } else {
+                throw APIError.serverError("Server connection failed. Please try again.")
+            }
+        }
+
+        let decoder = JSONDecoder()
+
+        do {
+            let apiResponse = try decoder.decode(APIResponse.self, from: data)
+
+            guard apiResponse.success, let apiRecipe = apiResponse.recipe else {
+                let errorMsg = apiResponse.error ?? "Could not extract a recipe from the link."
+                throw APIError.serverError(errorMsg)
+            }
+
+            return apiRecipe.asRecipe(platform: apiResponse.platform)
+        } catch let decodingError {
+            throw APIError.serverError("Failed to parse server response: \(decodingError.localizedDescription)")
+        }
+    }
+}
+
+// MARK: - API Error
+enum APIError: LocalizedError {
+    case serverError(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .serverError(let message): message
+        }
+    }
+}
+
+// MARK: - Recipe Store
+@MainActor
+class RecipeStore: ObservableObject {
+    @Published var recipes: [Recipe] = [] {
+        didSet {
+            if !isLoadingFromFirestore {
+                saveRecipes()
+            }
+            filterRecipes()
+        }
+    }
+    @Published var collections: [Collection] = [] {
+        didSet {
+            if !isLoadingFromFirestore {
+                saveCollections()
+            }
+        }
+    }
+    @Published var shoppingList: [ShoppingListItem] = [] {
+        didSet {
+            if !isLoadingFromFirestore {
+                saveShoppingList()
+            }
+        }
+    }
+    @Published var mealPlans: [String: MealPlanEntry] = [:] {
+        didSet {
+            if !isLoadingFromFirestore {
+                saveMealPlans()
+            }
+        }
+    }
+
+    @Published var filteredRecipes: [Recipe] = []
+    @Published var newlyImportedCollections: Set<String> = []
+    @Published var selectedShoppingItems: Set<UUID> = []
+    @Published var searchText = "" {
+        didSet { filterRecipes() }
+    }
+
+    @Published var isProcessingReel = false
+    @Published var importError: (isPresented: Bool, message: String) = (false, "")
+    @Published var loadingRecipeName = ""
+    @Published var shouldDismissToHome = false
+    @Published var isFirstTimeUser = true
+
+    private let apiService = RecipeAPIService()
+    private var importTask: Task<Recipe, Error>?
+    private var pendingCustomName: String = ""
+    private var authListener: AuthStateDidChangeListenerHandle?
+    private var hasLoadedFromFirestore = false
+    private var isLoadingFromFirestore = false  // Skip saves during bulk load
+    private var isShowingSampleData = false  // Prevent saving sample data to UserDefaults
+
+    private let recipesKey = "userRecipes"
+    private let collectionsKey = "userCollections"
+    private let shoppingListKey = "userShoppingList"
+    private let firstTimeUserKey = "isFirstTimeUser"
+    private let hasEverBeenAuthenticatedKey = "hasEverBeenAuthenticated"
+
+    init() {
+        #if DEBUG
+        print("RecipeStore.init() started")
+        #endif
+
+        loadData()
+
+        self.isFirstTimeUser = !UserDefaults.standard.bool(forKey: firstTimeUserKey)
+
+        cleanupOldCollections()
+
+        authListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+
+                if let user = user {
+                    #if DEBUG
+                    print("User authenticated: \(user.uid)")
+                    #endif
+
+                    // Clear sample data flag - we're loading real user data now
+                    self.isShowingSampleData = false
+
+                    // Clear local state BEFORE loading from Firestore to prevent merge issues
+                    self.isLoadingFromFirestore = true
+                    self.recipes = []
+                    self.collections = []
+                    self.shoppingList = []
+                    self.isLoadingFromFirestore = false
+
+                    UserDefaults.standard.set(true, forKey: self.hasEverBeenAuthenticatedKey)
+                    await self.loadFromFirestore()
+                    // Note: ensureMealPrepsCollectionExists() is now called inside loadFromFirestore()
+                } else {
+                    self.hasLoadedFromFirestore = false
+                    self.clearUserData()
+                    self.loadSampleData()
+                }
+            }
+        }
+
+        let hasEverBeenAuthenticated = UserDefaults.standard.bool(forKey: hasEverBeenAuthenticatedKey)
+        if recipes.isEmpty && Auth.auth().currentUser == nil && !hasEverBeenAuthenticated {
+            loadSampleData()
+        }
+
+
+        #if DEBUG
+        print("RecipeStore.init() completed: \(recipes.count) recipes, \(collections.count) collections")
+        #endif
+    }
+
+    deinit {
+        if let handle = authListener {
+            Auth.auth().removeStateDidChangeListener(handle)
+        }
+    }
+
+    // MARK: - Collection Management
+
+    private func cleanupOldCollections() {
+        collections.removeAll { $0.name == "Favorites" }
+
+        if let mealPrepsIndex = collections.firstIndex(where: { $0.name == "Meal Preps" }),
+           collections[mealPrepsIndex].recipeIDs.isEmpty && !recipes.isEmpty {
+            collections[mealPrepsIndex].recipeIDs = recipes.map { $0.id }
+        }
+    }
+
+    func createCollection(named name: String) -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+
+        if collections.contains(where: { $0.name.lowercased() == trimmedName.lowercased() }) {
+            return false
+        }
+
+        let newCollection = Collection(name: trimmedName)
+        collections.insert(newCollection, at: 0)
+        return true
+    }
+
+    func deleteCollection(_ collection: Collection) {
+        guard collection.name != "Meal Preps" else { return }
+        collections.removeAll { $0.id == collection.id }
+    }
+
+    func renameCollection(_ collection: Collection, to newName: String) -> Bool {
+        let trimmedName = newName.trimmingCharacters(in: .whitespaces)
+
+        guard collection.name != "Meal Preps" else { return false }
+
+        if collections.contains(where: { $0.id != collection.id && $0.name.lowercased() == trimmedName.lowercased() }) {
+            return false
+        }
+
+        if let index = collections.firstIndex(where: { $0.id == collection.id }) {
+            collections[index].name = trimmedName
+            collections[index].updatedAt = Date()
+            return true
+        }
+
+        return false
+    }
+
+    private func ensureMealPrepsCollectionExists() {
+        if !collections.contains(where: { $0.name.lowercased() == "meal preps" }) {
+            let mealPreps = Collection(
+                name: "Meal Preps",
+                recipeIDs: recipes.map { $0.id }
+            )
+            collections.append(mealPreps)
+            print("Created Meal Preps collection with \(mealPreps.recipeIDs.count) recipes")
+        }
+    }
+
+    /// Only creates Meal Preps if user is authenticated and it doesn't exist in Firestore data
+    /// This prevents creating duplicates when Firestore already has a Meal Preps collection
+    private func ensureMealPrepsCollectionExistsIfNeeded() {
+        // Only create for authenticated users (not for sample data)
+        guard Auth.auth().currentUser != nil else { return }
+        guard !isShowingSampleData else { return }
+
+        if !collections.contains(where: { $0.name.lowercased() == "meal preps" }) {
+            let mealPreps = Collection(
+                name: "Meal Preps",
+                recipeIDs: recipes.map { $0.id }
+            )
+            collections.append(mealPreps)
+            print("Created Meal Preps collection for authenticated user with \(mealPreps.recipeIDs.count) recipes")
+        }
+    }
+
+    func toggle(_ recipe: Recipe, in collection: Collection) {
+        guard let collectionIndex = collections.firstIndex(where: { $0.id == collection.id }) else { return }
+
+        var recipeIDs = Set(collections[collectionIndex].recipeIDs)
+        if recipeIDs.contains(recipe.id) {
+            recipeIDs.remove(recipe.id)
+        } else {
+            recipeIDs.insert(recipe.id)
+        }
+
+        collections[collectionIndex].recipeIDs = Array(recipeIDs)
+    }
+
+    func recipes(in collection: Collection) -> [Recipe] {
+        let recipeIdSet = Set(collection.recipeIDs)
+        return recipes.filter { recipeIdSet.contains($0.id) }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    func isRecipe(_ recipe: Recipe, in collection: Collection) -> Bool {
+        collection.recipeIDs.contains(recipe.id)
+    }
+
+    // MARK: - Navigation
+
+    func navigateToHome() {
+        shouldDismissToHome = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.shouldDismissToHome = false
+        }
+    }
+
+    func markFirstImportCompleted() {
+        isFirstTimeUser = false
+        UserDefaults.standard.set(true, forKey: firstTimeUserKey)
+    }
+
+    // MARK: - Recipe Management
+
+    func deleteRecipe(_ recipe: Recipe) {
+        recipes.removeAll { $0.id == recipe.id }
+
+        for index in collections.indices {
+            collections[index].recipeIDs.removeAll { $0 == recipe.id }
+        }
+
+        filterRecipes()
+    }
+
+    // MARK: - Shopping List Management
+
+    func addIngredientsToShoppingList(_ ingredients: [Ingredient]) {
+        var newItems: [ShoppingListItem] = []
+
+        for ingredient in ingredients {
+            if !shoppingList.contains(where: { $0.name.lowercased() == ingredient.name.lowercased() }) {
+                let item = ShoppingListItem(name: ingredient.name, category: ingredient.category)
+                newItems.append(item)
+            }
+        }
+
+        shoppingList.insert(contentsOf: newItems, at: 0)
+    }
+
+    func removeFromShoppingList(_ item: ShoppingListItem) {
+        shoppingList.removeAll { $0.id == item.id }
+    }
+
+    func clearShoppingList() {
+        shoppingList.removeAll()
+    }
+
+    // MARK: - Recipe Import Flow
+
+    func startImport(url: String, customName: String) {
+        pendingCustomName = customName
+        isProcessingReel = true
+        importError = (false, "")
+        loadingRecipeName = customName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if isCollectionShareLink(url) {
+            let collectionId = extractCollectionId(from: url)
+            startCollectionImport(collectionId: collectionId)
+            return
+        }
+
+        importTask = Task {
+            do {
+                let recipe = try await apiService.importRecipeFromReel(reelURL: url)
+                await MainActor.run {
+                    self.completeImport(with: recipe)
+                }
+                return recipe
+            } catch {
+                await MainActor.run {
+                    self.handleImportError(error)
+                }
+                throw error
+            }
+        }
+    }
+
+    // MARK: - Collection Import Flow
+
+    private func isCollectionShareLink(_ url: String) -> Bool {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.contains("souschef.ai/") && !trimmed.contains("/recipe/")
+    }
+
+    private func extractCollectionId(from url: String) -> String {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let range = trimmed.range(of: "souschef.ai/") {
+            let idPart = String(trimmed[range.upperBound...])
+            let cleanId = idPart.components(separatedBy: ["?", "#"]).first ?? idPart
+            return cleanId.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return ""
+    }
+
+    private func generateUniqueCollectionName(baseName: String) -> String {
+        let existingNames = Set(collections.map { $0.name.lowercased() })
+        var candidateName = baseName
+        var counter = 1
+
+        while existingNames.contains(candidateName.lowercased()) {
+            counter += 1
+            candidateName = "\(baseName) (\(counter))"
+        }
+
+        return candidateName
+    }
+
+    private func startCollectionImport(collectionId: String) {
+        guard !collectionId.isEmpty else {
+            handleImportError(NSError(domain: "ImportError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid collection link"]))
+            return
+        }
+
+        loadingRecipeName = "Importing collection..."
+
+        FirestoreRecipeService.shared.fetchCollection(id: collectionId) { [weak self] collection, recipes in
+            DispatchQueue.main.async {
+                self?.completeCollectionImport(collection: collection, recipes: recipes)
+            }
+        }
+    }
+
+    private func completeCollectionImport(collection: Collection?, recipes: [Recipe]) {
+        guard let collection = collection else {
+            handleImportError(NSError(domain: "ImportError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Collection not found or not accessible"]))
+            return
+        }
+
+        print("Importing collection: '\(collection.name)' with \(recipes.count) recipes")
+
+        let existingRecipeNames = Set(self.recipes.map { $0.name.lowercased() })
+        let recipesToImport = recipes.filter { recipe in
+            !existingRecipeNames.contains(recipe.name.lowercased())
+        }
+
+        var newRecipes: [Recipe] = []
+        var newRecipeIds: [String] = []
+
+        for recipe in recipesToImport {
+            let newRecipe = Recipe(
+                id: UUID().uuidString,
+                name: recipe.name,
+                description: recipe.description,
+                imageUrl: recipe.imageUrl,
+                prepTime: recipe.prepTime,
+                cookTime: recipe.cookTime,
+                difficulty: recipe.difficulty,
+                nutrition: recipe.nutrition,
+                ingredients: recipe.ingredients,
+                steps: recipe.steps,
+                tags: recipe.tags,
+                isFromReel: recipe.isFromReel,
+                extractedFrom: recipe.extractedFrom,
+                creatorHandle: recipe.creatorHandle,
+                creatorName: recipe.creatorName,
+                originalUrl: recipe.originalUrl
+            )
+
+            newRecipes.append(newRecipe)
+            newRecipeIds.append(newRecipe.id)
+        }
+
+        for recipe in recipes {
+            if existingRecipeNames.contains(recipe.name.lowercased()) {
+                if let existingRecipe = self.recipes.first(where: { $0.name.lowercased() == recipe.name.lowercased() }) {
+                    newRecipeIds.append(existingRecipe.id)
+                }
+            }
+        }
+
+        let uniqueName = generateUniqueCollectionName(baseName: collection.name)
+        let newCollection = Collection(
+            id: UUID().uuidString,
+            name: uniqueName,
+            description: collection.description,
+            coverImageUrl: collection.coverImageUrl,
+            recipeIDs: newRecipeIds,
+            tags: collection.tags,
+            createdBy: ""
+        )
+
+        self.recipes.insert(contentsOf: newRecipes, at: 0)
+        self.collections.insert(newCollection, at: 0)
+
+        newlyImportedCollections.insert(newCollection.id)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            self.newlyImportedCollections.remove(newCollection.id)
+        }
+
+        filterRecipes()
+
+        isProcessingReel = false
+        pendingCustomName = ""
+        loadingRecipeName = ""
+        importTask = nil
+    }
+
+    private func completeImport(with recipe: Recipe) {
+        var finalRecipe = recipe
+        let trimmedName = pendingCustomName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedName.isEmpty {
+            finalRecipe.name = trimmedName
+        }
+
+        recipes.insert(finalRecipe, at: 0)
+        filterRecipes()
+
+        isProcessingReel = false
+        pendingCustomName = ""
+        loadingRecipeName = ""
+        importTask = nil
+    }
+
+    private func handleImportError(_ error: Error) {
+        importError = (true, error.localizedDescription)
+        isProcessingReel = false
+        pendingCustomName = ""
+        loadingRecipeName = ""
+        importTask = nil
+    }
+
+    func cancelImport() {
+        importTask?.cancel()
+        importTask = nil
+        isProcessingReel = false
+        pendingCustomName = ""
+        loadingRecipeName = ""
+    }
+
+    // MARK: - Filtering & Data Loading
+
+    func filterRecipes() {
+        if searchText.isEmpty {
+            filteredRecipes = recipes.sorted { $0.createdAt > $1.createdAt }
+        } else {
+            let lowercasedQuery = searchText.lowercased()
+            filteredRecipes = recipes.filter {
+                $0.name.lowercased().contains(lowercasedQuery) ||
+                $0.ingredients.map { $0.name }.joined().lowercased().contains(lowercasedQuery)
+            }.sorted { $0.createdAt > $1.createdAt }
+        }
+    }
+
+    private func loadData() {
+        print("loadData() started")
+        let decoder = JSONDecoder()
+
+        if let recipesData = UserDefaults.standard.data(forKey: recipesKey) {
+            do {
+                let decodedRecipes = try decoder.decode([Recipe].self, from: recipesData)
+                self.recipes = decodedRecipes
+                print("Loaded \(decodedRecipes.count) recipes from UserDefaults")
+            } catch {
+                print("Failed to decode recipes from UserDefaults: \(error)")
+                UserDefaults.standard.removeObject(forKey: recipesKey)
+                self.recipes = []
+            }
+        }
+
+        if let collectionsData = UserDefaults.standard.data(forKey: collectionsKey) {
+            do {
+                let decodedCollections = try decoder.decode([Collection].self, from: collectionsData)
+                self.collections = decodedCollections
+                print("Loaded \(decodedCollections.count) collections from UserDefaults")
+            } catch {
+                print("Failed to decode collections from UserDefaults: \(error)")
+                UserDefaults.standard.removeObject(forKey: collectionsKey)
+                self.collections = []
+            }
+        }
+
+        if let shoppingListData = UserDefaults.standard.data(forKey: shoppingListKey) {
+            do {
+                let decodedShoppingList = try decoder.decode([ShoppingListItem].self, from: shoppingListData)
+                self.shoppingList = decodedShoppingList
+                print("Loaded \(decodedShoppingList.count) shopping list items from UserDefaults")
+            } catch {
+                print("Failed to decode shopping list from UserDefaults: \(error)")
+                UserDefaults.standard.removeObject(forKey: shoppingListKey)
+                self.shoppingList = []
+            }
+        }
+
+        print("loadData() completed - Recipes: \(recipes.count), Collections: \(collections.count), Shopping: \(shoppingList.count)")
+
+        filterRecipes()
+    }
+
+    @MainActor
+    private func loadFromFirestore() async {
+        print("loadFromFirestore() started")
+
+        await withCheckedContinuation { continuation in
+            FirestoreRecipeService.shared.load { [weak self] firestoreRecipes, firestoreCollections, firestoreShoppingList in
+                guard let self = self else {
+                    print("Self is nil in Firestore callback")
+                    continuation.resume()
+                    return
+                }
+
+                // Also load meal plans
+                FirestoreRecipeService.shared.loadMealPlans { mealPlanEntries in
+                    Task { @MainActor in
+                        print("Loaded from Firestore: \(firestoreRecipes.count) recipes, \(firestoreCollections.count) collections, \(firestoreShoppingList.count) shopping items, \(mealPlanEntries.count) meal plans")
+
+                        let hasRemoteData = !firestoreRecipes.isEmpty || !firestoreCollections.isEmpty || !firestoreShoppingList.isEmpty
+
+                        if hasRemoteData {
+                            // Skip saves during bulk load to prevent redundant I/O
+                            self.isLoadingFromFirestore = true
+
+                            // REPLACE local data with Firestore data (not merge)
+                            // This prevents duplicates from stale local/sample data
+                            var transaction = Transaction(animation: nil)
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                self.recipes = firestoreRecipes
+                                self.collections = firestoreCollections
+                                self.shoppingList = firestoreShoppingList
+                                self.loadMealPlansFromCloud(mealPlanEntries)
+                            }
+
+                            // Re-enable saves and do single save at end
+                            self.isLoadingFromFirestore = false
+                            self.saveRecipes()
+                            self.saveCollections()
+                            self.saveShoppingList()
+
+                            // Ensure Meal Preps collection exists (only if not in Firestore data)
+                            self.ensureMealPrepsCollectionExistsIfNeeded()
+
+                            print("Replaced local data with Firestore: \(self.recipes.count) recipes, \(self.collections.count) collections")
+                        } else {
+                            // No Firestore data - this is a new user or user with empty account
+                            print("No Firestore data found - loading sample data for preview")
+                            self.loadSampleData()
+                        }
+
+                        self.hasLoadedFromFirestore = true
+                        print("loadFromFirestore() completed - filteredRecipes count: \(self.filteredRecipes.count)")
+                        continuation.resume()
+                    }
+                }
+            }
+        }
+    }
+
+    /// Merge local and remote recipes, keeping unique recipes by ID and preferring remote for conflicts
+    private func mergeRecipes(local: [Recipe], remote: [Recipe]) -> [Recipe] {
+        var recipeDict: [String: Recipe] = [:]
+
+        // Add local recipes first
+        for recipe in local {
+            recipeDict[recipe.id] = recipe
+        }
+
+        // Remote recipes override local (they're the source of truth from Firestore)
+        for recipe in remote {
+            recipeDict[recipe.id] = recipe
+        }
+
+        // Sort by creation date, newest first
+        return Array(recipeDict.values).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// Merge local and remote collections, keeping unique collections by ID and preferring remote for conflicts
+    /// Also deduplicates by name (case-insensitive), preferring remote collections
+    private func mergeCollections(local: [Collection], remote: [Collection]) -> [Collection] {
+        var collectionDict: [String: Collection] = [:]
+        var nameToId: [String: String] = [:]  // Track names to detect duplicates
+
+        // Add local collections first
+        for collection in local {
+            let lowercaseName = collection.name.lowercased()
+            collectionDict[collection.id] = collection
+            nameToId[lowercaseName] = collection.id
+        }
+
+        // Remote collections override local (prefer remote for same name)
+        for collection in remote {
+            let lowercaseName = collection.name.lowercased()
+            // If we already have a collection with this name, remove the old one
+            if let existingId = nameToId[lowercaseName], existingId != collection.id {
+                collectionDict.removeValue(forKey: existingId)
+            }
+            collectionDict[collection.id] = collection
+            nameToId[lowercaseName] = collection.id
+        }
+
+        return Array(collectionDict.values).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func clearUserData() {
+        print("clearUserData() started")
+
+        // Reset sample data flag before clearing
+        isShowingSampleData = false
+
+        // Skip saves during clear to prevent empty data being saved
+        isLoadingFromFirestore = true
+
+        recipes = []
+        collections = []
+        shoppingList = []
+
+        isLoadingFromFirestore = false
+
+        // Clear persisted data
+        UserDefaults.standard.removeObject(forKey: recipesKey)
+        UserDefaults.standard.removeObject(forKey: collectionsKey)
+        UserDefaults.standard.removeObject(forKey: shoppingListKey)
+
+        print("clearUserData() completed")
+    }
+
+    private func saveRecipes() {
+        // Don't save sample data to UserDefaults or Firestore
+        guard !isShowingSampleData else { return }
+
+        let encoder = JSONEncoder()
+        if let encoded = try? encoder.encode(recipes) {
+            UserDefaults.standard.set(encoded, forKey: recipesKey)
+        }
+        FirestoreRecipeService.shared.save(recipes: recipes, collections: collections, shoppingList: shoppingList)
+    }
+
+    private func saveCollections() {
+        // Don't save sample data to UserDefaults or Firestore
+        guard !isShowingSampleData else { return }
+
+        let encoder = JSONEncoder()
+        if let encoded = try? encoder.encode(collections) {
+            UserDefaults.standard.set(encoded, forKey: collectionsKey)
+        }
+        FirestoreRecipeService.shared.save(recipes: recipes, collections: collections, shoppingList: shoppingList)
+    }
+
+    private func saveShoppingList() {
+        // Don't save sample data to UserDefaults or Firestore
+        guard !isShowingSampleData else { return }
+
+        let encoder = JSONEncoder()
+        if let encoded = try? encoder.encode(shoppingList) {
+            UserDefaults.standard.set(encoded, forKey: shoppingListKey)
+        }
+        FirestoreRecipeService.shared.save(recipes: recipes, collections: collections, shoppingList: shoppingList)
+    }
+
+    private func saveMealPlans() {
+        // Don't save sample data to UserDefaults or Firestore
+        guard !isShowingSampleData else { return }
+
+        FirestoreRecipeService.shared.saveMealPlans(Array(mealPlans.values))
+    }
+
+    // MARK: - Meal Planning Methods
+
+    func setMealPlan(date: Date, mealType: MealType, recipe: Recipe?) {
+        let dateKey = MealPlanEntry.dateKey(from: date)
+        let planKey = "\(dateKey)-\(mealType.rawValue)"
+
+        if let recipe = recipe {
+            mealPlans[planKey] = MealPlanEntry(dateString: dateKey, mealType: mealType, recipeId: recipe.id)
+        } else {
+            mealPlans.removeValue(forKey: planKey)
+        }
+    }
+
+    func getMealPlan(date: Date, mealType: MealType) -> Recipe? {
+        let dateKey = MealPlanEntry.dateKey(from: date)
+        let planKey = "\(dateKey)-\(mealType.rawValue)"
+
+        guard let entry = mealPlans[planKey], let recipeId = entry.recipeId else {
+            return nil
+        }
+
+        return recipes.first { $0.id == recipeId }
+    }
+
+    func clearMealPlan(date: Date, mealType: MealType) {
+        let dateKey = MealPlanEntry.dateKey(from: date)
+        let planKey = "\(dateKey)-\(mealType.rawValue)"
+        mealPlans.removeValue(forKey: planKey)
+    }
+
+    private func loadMealPlansFromCloud(_ entries: [MealPlanEntry]) {
+        var planDict: [String: MealPlanEntry] = [:]
+        for entry in entries {
+            planDict[entry.id] = entry
+        }
+        self.mealPlans = planDict
+    }
+
+    private func loadSampleData() {
+        print("loadSampleData() started - Loading 2 sample recipes")
+
+        // Mark as showing sample data to prevent saving to UserDefaults/Firestore
+        self.isShowingSampleData = true
+
+        self.recipes = [
+            // From: https://www.instagram.com/reel/DTddviqkQLL/
+            Recipe(
+                name: "Cacio e Pepe Risotto",
+                description: "A creamy, pepper-forward risotto inspired by classic cacio e pepe — arborio rice cooked slowly in warm vegetable stock, finished with Parmesan, Pecorino and mascarpone for extra silkiness.",
+                imageUrl: "https://scontent-atl3-2.cdninstagram.com/v/t51.2885-15/615774096_655879547553424_6500314611190362949_n.jpg?stp=dst-jpg_e15_tt6&_nc_ht=scontent-atl3-2.cdninstagram.com&_nc_cat=104&_nc_oc=Q6cZ2QGbKHhU-ozN1f-XGiSOH5uKuhuxumXcG6WBGYvpg15vR6tLWDT0ZeoU-jIDqtPOYIw&_nc_ohc=p68sYUeVoKsQ7kNvwH-ZcAJ&_nc_gid=bItx21jULm0ytMhNSQUfRw&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfoScLkxwcHP_SaiLtjteEiaaaqVGNA1XkJGef0beNMJRQ&oe=697C2098&_nc_sid=10d13b",
+                prepTime: 3,
+                cookTime: 26,
+                difficulty: .medium,
+                nutrition: Nutrition(calories: 530, protein: 14, carbs: 53, fats: 26, portions: 4),
+                ingredients: [
+                    Ingredient(name: "4 cup vegetable stock (keep warm in a saucepan)", category: .cannedJarred),
+                    Ingredient(name: "2 tablespoon olive oil", category: .cupboardStaples),
+                    Ingredient(name: "2 tablespoon butter", category: .dairy),
+                    Ingredient(name: "1 whole large shallot (minced)", category: .fruitVegetables),
+                    Ingredient(name: "2 clove garlic (minced)", category: .fruitVegetables),
+                    Ingredient(name: "1 teaspoon kosher salt (adjust to taste)", category: .herbsSpices),
+                    Ingredient(name: "1.25 cup arborio rice", category: .pastaRiceGrains),
+                    Ingredient(name: "0.5 cup grated Parmesan (plus extra for garnish)", category: .dairy),
+                    Ingredient(name: "0.5 cup grated Pecorino Romano (plus extra for garnish)", category: .dairy),
+                    Ingredient(name: "2 teaspoon freshly ground black pepper (plus additional for garnish)", category: .herbsSpices),
+                    Ingredient(name: "0.25 cup mascarpone cheese", category: .dairy)
+                ],
+                steps: [
+                    "Bring the 4 cups vegetable stock to a gentle simmer in a saucepan and keep it warm over low heat.",
+                    "In a separate large heavy-bottomed pan, heat the olive oil and butter over medium heat. Add the minced shallot and sauté until translucent, about 4–5 minutes; add the minced garlic and cook for 1 minute more until fragrant.",
+                    "Add the arborio rice to the pan and stir to coat the grains with fat. Toast the rice, stirring, for 1–2 minutes until the edges look translucent.",
+                    "Begin adding the hot stock, one ladleful at a time, stirring frequently and allowing most of the liquid to be absorbed before adding more. Continue this process and cook the rice until al dente and creamy, about 16 minutes (total rice-cooking time typically 12–20 minutes).",
+                    "Once the rice is tender but with a slight bite, remove from heat. Stir in the grated Parmesan, grated Pecorino Romano, mascarpone, and an extra small knob of butter if desired. Add the kosher salt to taste and 2 teaspoons freshly ground black pepper, stirring vigorously to create a glossy, creamy texture. If needed, adjust consistency with a splash of reserved warm stock.",
+                    "Plate the risotto and finish with additional grated Parmesan and Pecorino and a crack of black pepper. Serve immediately."
+                ],
+                tags: ["Dinner", "Vegetarian", "risotto", "cacio e pepe", "cheesy", "comfort"],
+                isFromReel: true,
+                extractedFrom: "instagram",
+                creatorHandle: "@eitan",
+                creatorName: "Eitan Bernath",
+                originalUrl: "https://www.instagram.com/reel/DTddviqkQLL/"
+            ),
+
+            // From: https://www.instagram.com/reel/DR0eX5WD9ta/
+            Recipe(
+                name: "Peanut Butter & Jelly Rice Crispy Treats",
+                description: "Layered no-bake rice crispy treats with a peanut butter base and a raspberry jelly middle — finished with flaky sea salt for a sweet-and-salty PB&J twist.",
+                imageUrl: "https://instagram.ffcm1-2.fna.fbcdn.net/v/t51.2885-15/587808965_850673417675594_7478158234885205154_n.jpg?stp=dst-jpg_e15_tt6&_nc_ht=instagram.ffcm1-2.fna.fbcdn.net&_nc_cat=102&_nc_oc=Q6cZ2QEMffU7oke46ntPYXq529-rVt0LGxhZqhB0dEZ0_mOVJxx3VBnxUR9wf_DVbjMKQZxP4Z9zt54cV39FKjA7tAS_&_nc_ohc=TMMX-HN2byUQ7kNvwEqyl9M&_nc_gid=cOfHoPLp1SMKkj4otq_fTA&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afp8ERQB8vNT5M1BTecdinjpq0a1QQ3niZQE_BY9fAfrBg&oe=697C3289&_nc_sid=10d13b",
+                prepTime: 10,
+                cookTime: 15,
+                difficulty: .easy,
+                nutrition: Nutrition(calories: 268, protein: 4, carbs: 39, fats: 11, portions: 12),
+                ingredients: [
+                    Ingredient(name: "3 tbsp salted butter (for peanut butter mixture)", category: .dairy),
+                    Ingredient(name: "3 cups mini marshmallows (for peanut butter mixture)", category: .other),
+                    Ingredient(name: "0.5 cup smooth peanut butter (creamy)", category: .cupboardStaples),
+                    Ingredient(name: "0.25 cup sweetened condensed milk (for peanut butter mixture)", category: .cannedJarred),
+                    Ingredient(name: "4 cups crispy rice cereal (for peanut butter mixture)", category: .pastaRiceGrains),
+                    Ingredient(name: "2 tbsp salted butter (for jelly mixture)", category: .dairy),
+                    Ingredient(name: "2 cups mini marshmallows (for jelly mixture)", category: .other),
+                    Ingredient(name: "1/3 cup raspberry jelly", category: .cannedJarred),
+                    Ingredient(name: "2 tbsp sweetened condensed milk (for jelly mixture)", category: .cannedJarred),
+                    Ingredient(name: "2 cups crispy rice cereal (for jelly mixture)", category: .pastaRiceGrains),
+                    Ingredient(name: "1 pinch flaky sea salt (for garnish)", category: .herbsSpices)
+                ],
+                steps: [
+                    "Lightly grease and line a 9×9-inch (23×23 cm) pan with parchment paper; set aside.",
+                    "Make the peanut butter mixture: in a medium pot over medium heat, melt 3 tbsp salted butter. Add 3 cups mini marshmallows and stir until melted and smooth (about 3–5 minutes).",
+                    "Lower the heat and stir in 1/2 cup smooth peanut butter and 1/4 cup sweetened condensed milk until fully combined and smooth, then remove from heat.",
+                    "Fold in 4 cups crispy rice cereal until evenly coated. Press half of this peanut butter mixture firmly into the bottom of the prepared pan; reserve the remaining half.",
+                    "Make the jelly mixture: in another medium pot over medium heat, melt 2 tbsp salted butter. Add 2 cups mini marshmallows and stir until melted (about 3–4 minutes).",
+                    "Stir in 1/3 cup raspberry jelly and 2 tbsp sweetened condensed milk until fully combined, then remove from heat.",
+                    "Fold in 2 cups crispy rice cereal to the jelly mixture until evenly coated. Press the entire jelly mixture evenly over the peanut butter layer in the pan.",
+                    "Top: press the reserved peanut butter mixture evenly over the jelly layer. Use gentle, even pressure so layers stay intact.",
+                    "Let the pan cool at room temperature for 30–45 minutes to set. Sprinkle flaky sea salt on top before cutting, then cut into squares and serve."
+                ],
+                tags: ["Dessert", "Snack", "Vegetarian", "peanut butter", "pbandj", "rice krispy treats", "no-bake"],
+                isFromReel: true,
+                extractedFrom: "instagram",
+                creatorHandle: "@eitan",
+                creatorName: "Eitan Bernath",
+                originalUrl: "https://www.instagram.com/reel/DR0eX5WD9ta/"
+            )
+        ]
+        print("Created \(self.recipes.count) sample recipes")
+
+        self.collections = []
+
+        ensureMealPrepsCollectionExists()
+    }
+}

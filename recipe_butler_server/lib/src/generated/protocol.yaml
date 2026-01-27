@@ -1,0 +1,42 @@
+emailIdp:
+  - login:
+  - startRegistration:
+  - verifyRegistrationCode:
+  - finishRegistration:
+  - startPasswordReset:
+  - verifyPasswordResetCode:
+  - finishPasswordReset:
+firebaseIdp:
+  - login:
+jwtRefresh:
+  - refreshAccessToken:
+debug:
+  - checkFirebaseSecret:
+greeting:
+  - hello:
+import:
+  - importRecipeFromUrl:
+recipe:
+  - createRecipe:
+  - listMyRecipes:
+  - getRecipe:
+  - deleteRecipe:
+reminders:
+  - listMyReminders:
+  - listRemindersForList:
+  - addReminder:
+  - toggleReminder:
+  - deleteReminder:
+shopping:
+  - createShoppingList:
+  - listMyShoppingLists:
+  - addShoppingItem:
+  - toggleShoppingItem:
+  - updateShoppingItemCategory:
+  - listShoppingItems:
+  - subscribeShoppingList:
+  - createInvite:
+  - acceptInvite:
+tasks:
+  - listTasks:
+  - addTask:

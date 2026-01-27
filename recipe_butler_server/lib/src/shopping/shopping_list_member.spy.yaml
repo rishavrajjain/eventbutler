@@ -1,0 +1,6 @@
+class: ShoppingListMember
+table: shopping_list_member
+fields:
+  shoppingListId: int
+  userId: String
+  role: String

@@ -1,0 +1,10 @@
+class: Ingredient
+table: ingredient
+fields:
+  recipeId: int
+  text: String
+indexes:
+  ingredient_recipe_idx:
+    fields: recipeId
+    type: btree
+    unique: false

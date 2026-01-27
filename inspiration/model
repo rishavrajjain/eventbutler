@@ -1,0 +1,472 @@
+//
+//  Models.swift
+//  souschef
+//
+//  Core data models for the SousChef app
+//
+
+import SwiftUI
+import Foundation
+import Combine
+
+// MARK: - Brand Colors
+extension Color {
+    // Primary brand colors matching the new app icon
+    static let brandYellow = Color(red: 1.0, green: 0.8, blue: 0.0)       // Pure vibrant yellow from icon
+    static let brandDarkYellow = Color(red: 0.9, green: 0.6, blue: 0.0)   // Darker yellow for navigation
+    static let brandWhite = Color(red: 0.98, green: 0.98, blue: 1.0)      // Elegant white from pepper
+    static let brandGray = Color(red: 0.45, green: 0.45, blue: 0.5)       // Sophisticated gray
+    static let brandDarkGray = Color(red: 0.25, green: 0.25, blue: 0.3)   // Deep contrast
+
+    // Accent colors
+    static let brandGold = Color(red: 1.0, green: 0.75, blue: 0.0)        // Rich golden accent
+    static let brandSilver = Color(red: 0.7, green: 0.7, blue: 0.75)      // Silver accent
+
+    // Airbnb-style red for navigation
+    static let airbnbRed = Color(red: 1.0, green: 0.22, blue: 0.36)       // #FF385C
+}
+
+// MARK: - Notification Names
+extension Notification.Name {
+    static let showUserProfile = Notification.Name("showUserProfile")
+}
+
+// MARK: - Tab Bar Visibility Manager
+class TabBarVisibilityManager: ObservableObject {
+    @Published var isHidden: Bool = false
+}
+
+// MARK: - Recipe Difficulty
+enum RecipeDifficulty: String, CaseIterable, Codable, Hashable {
+    case easy = "Easy"
+    case medium = "Medium"
+    case hard = "Hard"
+
+    var displayName: String {
+        return self.rawValue
+    }
+
+    var color: Color {
+        switch self {
+        case .easy: return .green
+        case .medium: return .orange
+        case .hard: return .red
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .easy: return "1.circle.fill"
+        case .medium: return "2.circle.fill"
+        case .hard: return "3.circle.fill"
+        }
+    }
+}
+
+// MARK: - Ingredient Categories
+enum IngredientCategory: String, CaseIterable, Codable {
+    case myIngredients = "My Ingredients"
+    case fruitVegetables = "Fruit & Vegetables"
+    case meatPoultryFish = "Meat, Poultry, Fish"
+    case pastaRiceGrains = "Pasta, Rice & Grains"
+    case herbsSpices = "Herbs & Spices"
+    case cupboardStaples = "Cupboard Staples"
+    case dairy = "Dairy"
+    case cannedJarred = "Canned & Jarred"
+    case other = "Other"
+
+    var displayName: String {
+        return self.rawValue
+    }
+
+    var iconName: String {
+        switch self {
+        case .myIngredients: return "plus.circle.fill"
+        case .fruitVegetables: return "leaf.fill"
+        case .meatPoultryFish: return "fish.fill"
+        case .pastaRiceGrains: return "fork.knife"
+        case .herbsSpices: return "sparkles"
+        case .cupboardStaples: return "cabinet.fill"
+        case .dairy: return "drop.fill"
+        case .cannedJarred: return "takeoutbag.and.cup.and.straw.fill"
+        case .other: return "questionmark.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .myIngredients: return .black
+        case .fruitVegetables: return .green
+        case .meatPoultryFish: return .red
+        case .pastaRiceGrains: return .orange
+        case .herbsSpices: return .purple
+        case .cupboardStaples: return .brown
+        case .dairy: return .blue
+        case .cannedJarred: return .yellow
+        case .other: return .gray
+        }
+    }
+}
+
+// MARK: - Nutrition Information
+struct Nutrition: Codable, Hashable {
+    let calories: Int?
+    let protein: Int?
+    let carbs: Int?
+    let fats: Int?
+    let portions: Int?
+
+    init(calories: Int? = nil, protein: Int? = nil, carbs: Int? = nil, fats: Int? = nil, portions: Int? = nil) {
+        self.calories = calories
+        self.protein = protein
+        self.carbs = carbs
+        self.fats = fats
+        self.portions = portions
+    }
+}
+
+// MARK: - Backend Compatible Models
+struct NutritionInfo: Codable, Hashable {
+    let calories: Int?
+    let protein: Int?
+    let carbs: Int?
+    let fats: Int?
+    let portions: Int?
+
+    init(calories: Int? = nil, protein: Int? = nil, carbs: Int? = nil, fats: Int? = nil, portions: Int? = nil) {
+        self.calories = calories
+        self.protein = protein
+        self.carbs = carbs
+        self.fats = fats
+        self.portions = portions
+    }
+
+    // Convert from our Nutrition model
+    init(from nutrition: Nutrition) {
+        self.calories = nutrition.calories
+        self.protein = nutrition.protein
+        self.carbs = nutrition.carbs
+        self.fats = nutrition.fats
+        self.portions = nutrition.portions
+    }
+}
+
+struct CategorizedIngredient: Codable, Hashable {
+    let name: String
+    let category: String
+
+    // Convert from our Ingredient model
+    init(from ingredient: Ingredient) {
+        self.name = ingredient.name
+        self.category = ingredient.category.rawValue
+    }
+}
+
+// MARK: - Ingredient Model
+struct Ingredient: Codable, Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let category: IngredientCategory
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case category
+    }
+
+    // Helper initializer for backward compatibility
+    init(name: String, category: IngredientCategory = .other) {
+        self.name = name
+        self.category = category
+    }
+
+    // Custom decoder to handle potential data issues
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        let decodedName = try container.decode(String.self, forKey: .name)
+        let categoryString = try container.decodeIfPresent(String.self, forKey: .category) ?? "Other"
+
+        // Validate that name is not empty
+        guard !decodedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw DecodingError.dataCorrupted(DecodingError.Context(
+                codingPath: decoder.codingPath,
+                debugDescription: "Ingredient name cannot be empty"
+            ))
+        }
+
+        // Map category string to enum, fallback to .other if not found
+        self.category = IngredientCategory(rawValue: categoryString) ?? .other
+        self.name = decodedName
+    }
+
+    // Computed property that returns a placeholder image URL based on category
+    var categoryImageURL: URL? {
+        let keyword = category.displayName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "food"
+        let fallbackURL = URL(string: "https://loremflickr.com/400/400/\(keyword)")
+        return fallbackURL
+    }
+}
+
+// MARK: - Recipe Model
+struct Recipe: Identifiable, Codable, Hashable, Equatable {
+    let id: String
+    var name: String
+    var description: String
+    var imageUrl: String
+    var prepTime: Int?
+    var cookTime: Int?
+    var difficulty: RecipeDifficulty?
+    var nutrition: Nutrition?
+    var ingredients: [Ingredient]
+    var steps: [String]
+    var tags: [String] = []
+
+    // Clean metadata
+    var createdBy: String = ""
+    var createdAt: Date
+    var updatedAt: Date
+
+    // Source tracking (for imported recipes)
+    var isFromReel: Bool = false
+    var extractedFrom: String?
+    var creatorHandle: String?
+    var creatorName: String?
+    var originalUrl: String?
+
+    // Computed Properties
+    var totalTime: Int? {
+        guard let prep = prepTime, let cook = cookTime else { return nil }
+        return prep + cook
+    }
+
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        description: String,
+        imageUrl: String = "",
+        prepTime: Int? = nil,
+        cookTime: Int? = nil,
+        difficulty: RecipeDifficulty? = .medium,
+        nutrition: Nutrition? = nil,
+        ingredients: [Ingredient] = [],
+        steps: [String] = [],
+        tags: [String] = [],
+        createdBy: String = "",
+        isFromReel: Bool = false,
+        extractedFrom: String? = nil,
+        creatorHandle: String? = nil,
+        creatorName: String? = nil,
+        originalUrl: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.imageUrl = imageUrl
+        self.prepTime = prepTime
+        self.cookTime = cookTime
+        self.difficulty = difficulty
+        self.nutrition = nutrition
+        self.ingredients = ingredients
+        self.steps = steps
+        self.tags = tags
+        self.createdBy = createdBy
+        self.createdAt = Date()
+        self.updatedAt = Date()
+        self.isFromReel = isFromReel
+        self.extractedFrom = extractedFrom
+        self.creatorHandle = creatorHandle
+        self.creatorName = creatorName
+        self.originalUrl = originalUrl
+    }
+}
+
+// MARK: - Recipe Extensions
+extension Recipe {
+    // Computed properties for UI convenience
+    var totalTimeComputed: Int? {
+        let prep = prepTime ?? 0
+        let cook = cookTime ?? 0
+        let total = prep + cook
+        return total > 0 ? total : nil
+    }
+
+    var difficultyText: String {
+        return difficulty?.displayName ?? "Unknown"
+    }
+
+    var ingredientsByCategory: [IngredientCategory: [Ingredient]] {
+        return Dictionary(grouping: ingredients, by: { $0.category })
+    }
+
+    // Platform and creator convenience properties
+    var platformDisplayName: String {
+        switch extractedFrom?.lowercased() {
+        case "instagram": return "Instagram"
+        case "tiktok": return "TikTok"
+        case "youtube": return "YouTube"
+        case "website": return "Website"
+        default: return "Unknown"
+        }
+    }
+
+    var platformIcon: String {
+        switch extractedFrom?.lowercased() {
+        case "instagram": return "camera.fill"
+        case "tiktok": return "music.note"
+        case "youtube": return "play.rectangle.fill"
+        case "website": return "globe"
+        default: return "link"
+        }
+    }
+
+    var hasCreatorInfo: Bool {
+        return creatorHandle != nil || creatorName != nil
+    }
+
+    var displayCreatorName: String? {
+        // Prioritize username (@handle) as it's more stable than display names
+        if let handle = creatorHandle, !handle.isEmpty {
+            return handle
+        } else if let name = creatorName, !name.isEmpty {
+            return name
+        }
+        return nil
+    }
+}
+
+// MARK: - Collection Model
+struct Collection: Identifiable, Codable, Hashable {
+    let id: String
+    var name: String
+    var description: String = ""
+    var coverImageUrl: String = ""
+    var recipeIDs: [String] = []
+    var tags: [String] = []
+
+    // Clean metadata
+    var createdBy: String = ""
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        description: String = "",
+        coverImageUrl: String = "",
+        recipeIDs: [String] = [],
+        tags: [String] = [],
+        createdBy: String = ""
+    ) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.coverImageUrl = coverImageUrl
+        self.recipeIDs = recipeIDs
+        self.tags = tags
+        self.createdBy = createdBy
+        self.createdAt = Date()
+        self.updatedAt = Date()
+    }
+}
+
+// MARK: - User Reference (for sharing)
+struct UserReference: Codable, Identifiable, Hashable {
+    let id: String           // User ID
+    let name: String         // Display name
+    let profileImageUrl: String?
+    let handle: String?      // @username
+
+    init(id: String, name: String, profileImageUrl: String? = nil, handle: String? = nil) {
+        self.id = id
+        self.name = name
+        self.profileImageUrl = profileImageUrl
+        self.handle = handle
+    }
+}
+
+// MARK: - Content Statistics
+struct ContentStats: Codable, Hashable {
+    var views: Int = 0
+    var likes: Int = 0
+    var saves: Int = 0
+    var shares: Int = 0
+    var comments: Int = 0
+
+    init() {}
+}
+
+// MARK: - Shopping List Item
+struct ShoppingListItem: Identifiable, Codable, Hashable {
+    let id = UUID()
+    let name: String
+    let category: IngredientCategory?
+    let fromRecipe: String?
+    let addedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case category
+        case fromRecipe
+        case addedAt
+    }
+
+    init(name: String, category: IngredientCategory? = nil, fromRecipe: String? = nil) {
+        self.name = name
+        self.category = category
+        self.fromRecipe = fromRecipe
+        self.addedAt = Date()
+    }
+}
+
+// MARK: - Meal Planning
+enum MealType: String, Codable, CaseIterable {
+    case breakfast = "Breakfast"
+    case lunch = "Lunch"
+    case snack = "Snack"
+    case dinner = "Dinner"
+
+    var icon: String {
+        switch self {
+        case .breakfast: return "sunrise.fill"
+        case .lunch: return "sun.max.fill"
+        case .snack: return "leaf.fill"
+        case .dinner: return "moon.stars.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .breakfast: return Color.orange
+        case .lunch: return Color.yellow
+        case .snack: return Color.green
+        case .dinner: return Color.indigo
+        }
+    }
+}
+
+struct MealPlanEntry: Codable, Identifiable {
+    var id: String { "\(dateString)-\(mealType.rawValue)" }
+    let dateString: String  // "2026-01-25" format
+    let mealType: MealType
+    var recipeId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case dateString
+        case mealType
+        case recipeId
+    }
+
+    init(dateString: String, mealType: MealType, recipeId: String? = nil) {
+        self.dateString = dateString
+        self.mealType = mealType
+        self.recipeId = recipeId
+    }
+
+    static func dateKey(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+}
+
+

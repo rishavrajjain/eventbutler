@@ -1,0 +1,11 @@
+class: ShoppingList
+table: shopping_list
+fields:
+  ownerUserId: String
+  name: String
+  createdAt: DateTime
+indexes:
+  shopping_list_owner_idx:
+    fields: ownerUserId
+    type: btree
+    unique: false

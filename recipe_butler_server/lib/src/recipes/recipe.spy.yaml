@@ -1,0 +1,13 @@
+### Recipe model
+class: Recipe
+table: recipe
+fields:
+  ownerUserId: String
+  title: String
+  sourceUrl: String?
+  createdAt: DateTime
+indexes:
+  recipe_owner_idx:
+    fields: ownerUserId
+    type: btree
+    unique: false

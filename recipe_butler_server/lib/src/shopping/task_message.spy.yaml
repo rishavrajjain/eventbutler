@@ -1,0 +1,12 @@
+class: TaskMessage
+table: task_message
+fields:
+  shoppingListId: int
+  userId: String
+  text: String
+  createdAt: DateTime
+indexes:
+  task_message_list_idx:
+    fields: shoppingListId
+    type: btree
+    unique: false

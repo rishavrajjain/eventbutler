@@ -1,0 +1,13 @@
+class: ShoppingListEvent
+fields:
+  listId: int
+  type: String
+  item: ShoppingItem?
+  itemId: int?
+  isChecked: bool?
+  category: String?
+  text: String?
+  task: TaskMessage?
+  taskId: int?
+  updatedByUserId: String?
+  sentAt: DateTime

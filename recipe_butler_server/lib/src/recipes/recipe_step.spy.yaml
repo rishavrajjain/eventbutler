@@ -1,0 +1,11 @@
+class: RecipeStep
+table: recipe_step
+fields:
+  recipeId: int
+  orderIndex: int
+  text: String
+indexes:
+  step_recipe_idx:
+    fields: recipeId
+    type: btree
+    unique: false

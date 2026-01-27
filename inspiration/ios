@@ -1,0 +1,2336 @@
+//
+//  ContentView.swift
+//  souschef
+//
+//  Main UI views for the SousChef app
+//
+
+import SwiftUI
+import Foundation
+import Combine
+
+// ========================================================================
+// MARK: - Main Views
+// ========================================================================
+
+struct TabBarView: View {
+    @State private var selectedTab = 0
+    @EnvironmentObject var recipeStore: RecipeStore
+    @EnvironmentObject var tabBarVisibility: TabBarVisibilityManager
+    @StateObject private var chatVM = CommunityChatViewModel()
+
+    var body: some View {
+        ZStack {
+            // Native TabView with hidden bar - Apple's optimized view caching
+            TabView(selection: $selectedTab) {
+                NavigationStack {
+                    HomeView()
+                }
+                .tag(0)
+
+                ImportTabView()
+                    .tag(1)
+
+                ShoppingListView()
+                    .tag(2)
+
+                CommunityTabView(chatVM: chatVM)
+                    .tag(3)
+            }
+            .toolbar(.hidden, for: .tabBar)  // Hide native tab bar
+
+            // Custom Tab Bar - only show when not hidden
+            if !tabBarVisibility.isHidden {
+                VStack {
+                    Spacer()
+                    CustomTabBar(selectedTab: $selectedTab)
+                        .ignoresSafeArea(.container, edges: .bottom)
+                }
+            }
+        }
+        .ignoresSafeArea(.keyboard)
+        .onReceive(recipeStore.$isProcessingReel) { isProcessing in
+            if isProcessing {
+                // Switch to Home tab when import starts
+                selectedTab = 0
+            }
+        }
+    }
+}
+
+struct CustomTabBar: View {
+    @Binding var selectedTab: Int
+    @EnvironmentObject var recipeStore: RecipeStore
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Home Tab
+            TabBarButton(
+                icon: "house",
+                selectedIcon: "house.fill",
+                title: "Home",
+                isSelected: selectedTab == 0,
+                shouldAnimateAttention: false,
+                action: {
+                    selectedTab = 0
+                    recipeStore.navigateToHome()
+                }
+            )
+
+            // Import Tab
+            TabBarButton(
+                icon: "wand.and.stars",
+                selectedIcon: "wand.and.stars",
+                title: "Import",
+                isSelected: selectedTab == 1,
+                isProminent: false, // Remove prominent styling
+                shouldAnimateAttention: false, // Commented out animation: recipeStore.isFirstTimeUser
+                action: {
+                    selectedTab = 1
+                    // Stop animation when user visits import page for first time
+                    // if recipeStore.isFirstTimeUser {
+                    //     recipeStore.markFirstImportCompleted()
+                    // }
+                }
+            )
+
+            // Shopping List Tab
+            TabBarButton(
+                icon: "cart",
+                selectedIcon: "cart.fill",
+                title: "Shopping",
+                isSelected: selectedTab == 2,
+                shouldAnimateAttention: false,
+                action: { selectedTab = 2 }
+            )
+
+            // Community Tab
+            TabBarButton(
+                icon: "bubble.left.and.bubble.right",
+                selectedIcon: "bubble.left.and.bubble.right.fill",
+                title: "Community",
+                isSelected: selectedTab == 3,
+                shouldAnimateAttention: false,
+                action: {
+                    print("[COMMUNITY] Tab clicked - \(Date())")
+                    selectedTab = 3
+                }
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+        .background(Color(.systemBackground))
+        .overlay(
+            Rectangle()
+                .frame(height: 0.5)
+                .foregroundColor(Color(.separator))
+                .opacity(0.6),
+            alignment: .top
+        )
+        .background(Color(.systemBackground).ignoresSafeArea(.container, edges: .bottom))
+    }
+}
+
+struct TabBarButton: View {
+    let icon: String
+    let selectedIcon: String
+    let title: String
+    let isSelected: Bool
+    let isProminent: Bool
+    let shouldAnimateAttention: Bool
+    let action: () -> Void
+
+    @State private var animationScale: Double = 1.0
+    @State private var animationOpacity: Double = 1.0
+
+    init(icon: String, selectedIcon: String? = nil, title: String, isSelected: Bool, isProminent: Bool = false, shouldAnimateAttention: Bool = false, action: @escaping () -> Void) {
+        self.icon = icon
+        self.selectedIcon = selectedIcon ?? icon
+        self.title = title
+        self.isSelected = isSelected
+        self.isProminent = isProminent
+        self.shouldAnimateAttention = shouldAnimateAttention
+        self.action = action
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: isSelected ? selectedIcon : icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(buttonColor)
+                    .frame(width: 24, height: 24)
+                
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(buttonColor)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .frame(height: 50)
+        .scaleEffect(animationScale.isFinite ? animationScale : 1.0)
+        .opacity(animationOpacity.isFinite ? animationOpacity : 1.0)
+        .onAppear {
+            if shouldAnimateAttention {
+                startAttentionAnimation()
+            }
+        }
+        .onChange(of: shouldAnimateAttention) { _, newValue in
+            if newValue {
+                startAttentionAnimation()
+            } else {
+                stopAttentionAnimation()
+            }
+        }
+    }
+    
+    private var buttonColor: Color {
+        if shouldAnimateAttention {
+            return .airbnbRed
+        } else {
+            return isSelected ? .airbnbRed : Color(.systemGray)
+        }
+    }
+    
+    private func startAttentionAnimation() {
+        // Ensure initial values are valid
+        if !animationScale.isFinite { animationScale = 1.0 }
+        if !animationOpacity.isFinite { animationOpacity = 1.0 }
+        
+        // Pulsing scale animation
+        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+            animationScale = 1.2
+        }
+        
+        // Subtle opacity pulse
+        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+            animationOpacity = 0.7
+        }
+    }
+    
+    private func stopAttentionAnimation() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            animationScale = 1.0
+            animationOpacity = 1.0
+        }
+    }
+}
+
+// MARK: - Tab Views
+
+struct ImportTabView: View {
+    @EnvironmentObject var recipeStore: RecipeStore
+    @State private var reelLink = ""
+    @State private var customName = ""
+    @State private var showingNameModal = false
+    @FocusState private var isTextFieldFocused: Bool
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Warm gradient background
+                LinearGradient(
+                    colors: [
+                        Color(red: 1.0, green: 0.98, blue: 0.96),
+                        Color(red: 1.0, green: 0.95, blue: 0.92)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 40) {
+                        // Hero Section with floating mascot
+                        VStack(spacing: 20) {
+                            // Mascot with subtle glow effect
+                            ZStack {
+                                // Soft glow behind mascot
+                                Circle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                Color.airbnbRed.opacity(0.15),
+                                                Color.clear
+                                            ],
+                                            center: .center,
+                                            startRadius: 40,
+                                            endRadius: 80
+                                        )
+                                    )
+                                    .frame(width: 160, height: 160)
+
+                                Image("app_logo_without_background")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 120, height: 120)
+                            }
+
+                            VStack(spacing: 12) {
+                                Text("Import Recipes")
+                                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color(red: 0.2, green: 0.15, blue: 0.1))
+
+                                Text("Paste any recipe link and let AI\nextract everything for you")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(Color(red: 0.45, green: 0.4, blue: 0.35))
+                                    .multilineTextAlignment(.center)
+                                    .lineSpacing(4)
+                            }
+                        }
+                        .padding(.top, 24)
+
+                        // Main Import Card
+                        VStack(spacing: 24) {
+                            // URL Input Field
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Recipe URL")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(Color(red: 0.5, green: 0.45, blue: 0.4))
+                                    .textCase(.uppercase)
+                                    .tracking(0.5)
+
+                                HStack(spacing: 14) {
+                                    Image(systemName: "link")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(isTextFieldFocused ? Color.airbnbRed : Color(red: 0.6, green: 0.55, blue: 0.5))
+                                        .frame(width: 24)
+
+                                    ZStack(alignment: .leading) {
+                                        if reelLink.isEmpty {
+                                            Text("https://instagram.com/reel/...")
+                                                .font(.system(size: 16))
+                                                .foregroundColor(Color(red: 0.7, green: 0.65, blue: 0.6))
+                                        }
+                                        TextField("", text: $reelLink)
+                                            .focused($isTextFieldFocused)
+                                            .font(.system(size: 16))
+                                            .foregroundColor(Color(red: 0.2, green: 0.15, blue: 0.1))
+                                            .keyboardType(.URL)
+                                            .autocapitalization(.none)
+                                            .autocorrectionDisabled()
+                                    }
+
+                                    if !reelLink.isEmpty {
+                                        Button(action: { reelLink = "" }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 18))
+                                                .foregroundColor(Color(red: 0.7, green: 0.65, blue: 0.6))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 16)
+                                .background(Color.white)
+                                .cornerRadius(14)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(
+                                            isTextFieldFocused ? Color.airbnbRed.opacity(0.5) : Color(red: 0.9, green: 0.88, blue: 0.85),
+                                            lineWidth: isTextFieldFocused ? 2 : 1
+                                        )
+                                )
+                                .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 4)
+                            }
+
+                            // Import Button with gradient
+                            Button(action: handleImportAction) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "wand.and.stars")
+                                        .font(.system(size: 18, weight: .semibold))
+                                    Text("Import Recipe")
+                                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(
+                                    LinearGradient(
+                                        colors: isLinkValid
+                                            ? [Color.airbnbRed, Color(red: 0.9, green: 0.25, blue: 0.3)]
+                                            : [Color(red: 0.8, green: 0.75, blue: 0.7), Color(red: 0.75, green: 0.7, blue: 0.65)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .cornerRadius(14)
+                                .shadow(
+                                    color: isLinkValid ? Color.airbnbRed.opacity(0.35) : Color.clear,
+                                    radius: 12,
+                                    x: 0,
+                                    y: 6
+                                )
+                            }
+                            .disabled(!isLinkValid)
+                            .buttonStyle(.plain)
+                        }
+                        .padding(24)
+                        .background(Color.white)
+                        .cornerRadius(24)
+                        .shadow(color: Color.black.opacity(0.06), radius: 20, x: 0, y: 10)
+                        .padding(.horizontal, 20)
+
+                        // Supported Platforms - Elegant pill style
+                        VStack(spacing: 14) {
+                            Text("Works with your favorites")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Color(red: 0.55, green: 0.5, blue: 0.45))
+
+                            HStack(spacing: 24) {
+                                Image("tiktok-coloured")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 26, height: 26)
+
+                                Image("instagram-coloured")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 26, height: 26)
+
+                                Image("youtube-coloured")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 26, height: 26)
+
+                                // Globe with matching style
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(red: 0.95, green: 0.95, blue: 0.97))
+                                        .frame(width: 26, height: 26)
+                                    Image(systemName: "globe")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.45))
+                                }
+                            }
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 18)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white)
+                                    .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
+                            )
+                        }
+                        .padding(.top, 8)
+
+                        Spacer(minLength: 60)
+                    }
+                }
+                .onTapGesture {
+                    isTextFieldFocused = false
+                }
+            }
+            .navigationTitle("")
+            .navigationBarHidden(true)
+        }
+        .sheet(isPresented: $showingNameModal) {
+            CustomNameModal(reelLink: reelLink, customName: $customName) { name in
+                recipeStore.startImport(url: reelLink, customName: name)
+            }
+        }
+    }
+    
+    private var isLinkValid: Bool {
+        let trimmed = reelLink.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && (
+            trimmed.hasPrefix("http://") ||
+            trimmed.hasPrefix("https://") ||
+            trimmed.contains(".com") ||
+            trimmed.contains(".org") ||
+            trimmed.contains(".net") ||
+            trimmed.contains("souschef.ai/")
+        )
+    }
+    
+    private func isCollectionLink(_ url: String) -> Bool {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.contains("recipewallet.ai/") && !trimmed.contains("/recipe/")
+    }
+    
+    private func handleImportAction() {
+        // Skip name modal for collection links - import directly
+        if isCollectionLink(reelLink) {
+            recipeStore.startImport(url: reelLink, customName: "")
+        } else {
+            // Regular recipe import - show name modal
+            showingNameModal = true
+        }
+    }
+    
+
+}
+
+struct TipItem: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.orange)
+                .frame(width: 20, alignment: .leading)
+            
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+    }
+}
+
+struct PlatformCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let gradient: [Color] // Keep for compatibility but won't use
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Use colorful SVG icons when available, fallback to system icons
+            if let svgIconName = platformSVGIcon {
+                Image(svgIconName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 24, height: 24)
+            } else {
+                Image(systemName: platformSystemIcon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.secondary)
+                .frame(width: 24, height: 24)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(.primary)
+                
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.separator), lineWidth: 0.5)
+        )
+    }
+    
+    private var platformSVGIcon: String? {
+        switch title.lowercased() {
+        case "tiktok": return "tiktok-coloured"
+        case "instagram": return "instagram-coloured"
+        case "youtube": return "youtube-coloured"
+        default: return nil // No SVG icon available
+        }
+    }
+    
+    private var platformSystemIcon: String {
+        switch title.lowercased() {
+        case "tiktok": return "music.note"
+        case "instagram": return "camera"
+        case "youtube": return "play.rectangle"
+        case "websites": return "globe"
+        default: return "link"
+        }
+    }
+}
+
+struct CustomNameModal: View {
+    let reelLink: String
+    @Binding var customName: String
+    let onImport: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var isNameFieldFocused: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with drag indicator
+            VStack(spacing: 16) {
+                // Drag indicator
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.secondary.opacity(0.5))
+                    .frame(width: 36, height: 4)
+                    .padding(.top, 12)
+                
+                VStack(spacing: 8) {
+                    Text("Name Your Recipe")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text("Give your recipe a custom name or leave blank to use the original title")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+            }
+            .padding(.bottom, 32)
+            
+            // Input section
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Recipe Name (Optional)")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(.primary)
+                
+                TextField("Enter custom name...", text: $customName)
+                    .focused($isNameFieldFocused)
+                    .font(.system(size: 16))
+                    .padding(16)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isNameFieldFocused ? Color(red: 1.0, green: 0.35, blue: 0.37) : Color(.separator), lineWidth: 1.5)
+                    )
+            }
+            .padding(.horizontal, 24)
+            
+            Spacer()
+            
+            // Action buttons
+            VStack(spacing: 16) {
+                Button(action: {
+                    onImport(customName)
+                    dismiss()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Import Recipe")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(Color(red: 1.0, green: 0.35, blue: 0.37))
+                    .cornerRadius(12)
+                    .shadow(color: Color(red: 1.0, green: 0.35, blue: 0.37).opacity(0.3), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                
+                Button("Cancel") { 
+                    dismiss() 
+                }
+                .foregroundColor(.secondary)
+                .font(.system(size: 16, weight: .medium))
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 34)
+        }
+        .background(Color(.systemGroupedBackground))
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.hidden) // We have our own
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { 
+                isNameFieldFocused = true 
+            }
+        }
+    }
+}
+
+
+
+struct ContentView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var recipeStore = RecipeStore()
+    @StateObject private var tabBarVisibility = TabBarVisibilityManager()
+
+    // Force light mode flag - set to true to always use light mode
+    private let forceAlwaysLightMode = true
+
+    var body: some View {
+        Group {
+            if authViewModel.user == nil {
+                AuthView()
+                    .environmentObject(authViewModel)
+            } else {
+                TabBarView()
+                    .environmentObject(recipeStore)
+                    .environmentObject(authViewModel)
+                    .environmentObject(tabBarVisibility)
+            }
+        }
+        .preferredColorScheme(forceAlwaysLightMode ? .light : nil)
+    }
+}
+
+// MARK: - Home View
+struct HomeView: View {
+    @EnvironmentObject var recipeStore: RecipeStore
+    
+    @State private var showingCreateCollectionSheet = false
+    @State private var recipeToManage: Recipe?
+    @State private var isCollectionsExpanded = true
+    @State private var personalizedGreeting = "Sous Chef"
+    
+    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+    
+    var body: some View {
+        ZStack {
+            VStack(spacing: 0) {
+                SearchBar(text: $recipeStore.searchText)
+                    .padding(.horizontal)
+                    .padding(.vertical, 10)
+                    .background(Color(.systemBackground))
+                
+                ScrollView {
+                    // Collections and recipe grid
+                    VStack(spacing: 0) {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isCollectionsExpanded.toggle()
+                            }
+                        }) {
+                            HStack {
+                                Text("Collections")
+                                    .font(.title2.bold())
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .rotationEffect(.degrees(isCollectionsExpanded ? 90 : 0))
+                            }
+                            .foregroundColor(.primary)
+                            .padding()
+                        }
+                        
+                        if isCollectionsExpanded {
+                            CollectionsRowView(showingCreateSheet: $showingCreateCollectionSheet)
+                                .transition(.asymmetric(
+                                    insertion: .opacity.combined(with: .move(edge: .top)),
+                                    removal: .opacity.animation(.easeInOut(duration: 0.2))
+                                ))
+                        }
+                    }
+                    
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        // Loading Recipe Card (first item in grid when importing)
+                        if recipeStore.isProcessingReel {
+                            LoadingRecipeCard(recipeName: recipeStore.loadingRecipeName)
+                                .transition(.asymmetric(
+                                    insertion: .scale(scale: 0.8).combined(with: .opacity),
+                                    removal: .scale(scale: 0.8).combined(with: .opacity)
+                                ))
+                        }
+                        
+                        ForEach(recipeStore.filteredRecipes) { recipe in
+                            NavigationLink(destination: RecipeDetailView(recipe: recipe)) {
+                                RecipeCard(recipe: recipe)
+                                    .contentShape(Rectangle())
+                                    .contextMenu {
+                                        Button { recipeToManage = recipe } label: {
+                                            Label("Add to Collection", systemImage: "folder.badge.plus")
+                                        }
+                                        
+                                        Button(role: .destructive) { 
+                                            deleteRecipe(recipe) 
+                                        } label: {
+                                            Label("Delete Recipe", systemImage: "trash")
+                                        }
+                                    }
+                            }
+                            .buttonStyle(.plain)
+                            .onLongPressGesture(minimumDuration: 0.5) {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                recipeToManage = recipe
+                            }
+                        }
+                    }
+                    .padding([.horizontal, .top])
+                    
+                    if recipeStore.filteredRecipes.isEmpty && !recipeStore.searchText.isEmpty {
+                        Spacer(minLength: 80)
+                        EmptyStateView(hasRecipes: true, searchText: recipeStore.searchText)
+                    }
+                    
+                    // Bottom padding to account for custom tab bar
+                    Spacer(minLength: 100)
+                }
+            }
+            .navigationTitle(personalizedGreeting)
+            .background(Color(.systemGroupedBackground))
+            .onAppear {
+                updatePersonalizedGreeting()
+            }
+            .sheet(isPresented: $showingCreateCollectionSheet) { NewCollectionSheet() }
+            .sheet(item: $recipeToManage) { recipe in
+                AddToCollectionSheet(recipe: recipe)
+            }
+            .alert("Import Error", isPresented: $recipeStore.importError.isPresented) {
+                Button("OK") { }
+            } message: {
+                Text(recipeStore.importError.message)
+            }
+        }
+        .overlay {
+            if recipeStore.recipes.isEmpty {
+                EmptyStateView(hasRecipes: false, searchText: "")
+            }
+        }
+        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: recipeStore.isProcessingReel)
+    }
+    
+    private func deleteRecipe(_ recipe: Recipe) {
+        recipeStore.deleteRecipe(recipe)
+    }
+    
+    private func updatePersonalizedGreeting() {
+        personalizedGreeting = FirestoreRecipeService.shared.getPersonalizedGreeting()
+    }
+}
+
+struct CollectionDetailView: View {
+    let collection: Collection
+    @EnvironmentObject var store: RecipeStore
+    @State private var showingAddRecipesSheet = false
+    @State private var showingShareSheet = false
+    @State private var recipeToDelete: Recipe?
+    @State private var showingDeleteAlert = false
+    
+    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+    
+    var body: some View {
+        let recipesInCollection = store.recipes(in: collection)
+        
+        Group {
+            if recipesInCollection.isEmpty {
+                emptyState
+            } else {
+                recipeGrid(recipes: recipesInCollection)
+            }
+        }
+        .navigationTitle(collection.name)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 16) {
+                    Button {
+                        showingShareSheet = true
+                    } label: {
+                        Label("Share Collection", systemImage: "square.and.arrow.up")
+                    }
+                    
+                Button {
+                    showingAddRecipesSheet = true
+                } label: {
+                    Label("Add Recipes", systemImage: "folder.badge.plus")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddRecipesSheet) {
+            AddRecipesToCollectionSheet(collection: collection)
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareCollectionSheet(collection: collection)
+        }
+        .alert("Remove Recipe", isPresented: $showingDeleteAlert) {
+            Button("Remove", role: .destructive) {
+                if let recipe = recipeToDelete {
+                    withAnimation {
+                        store.toggle(recipe, in: collection)
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Remove '\(recipeToDelete?.name ?? "")' from '\(collection.name)'?")
+        }
+    }
+    
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tray")
+                .font(.system(size: 50))
+                .foregroundColor(.secondary)
+            Text("No Recipes Yet")
+                .font(.title2).bold()
+            Text("Long-press any recipe on Home to add it.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
+        
+    }
+    
+    private func recipeGrid(recipes: [Recipe]) -> some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(recipes) { recipe in
+                    NavigationLink(destination: RecipeDetailView(recipe: recipe)) {
+                        RecipeCard(recipe: recipe)
+                            .contentShape(Rectangle())
+                            .onLongPressGesture(minimumDuration: 0.5) {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                recipeToDelete = recipe
+                                showingDeleteAlert = true
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding()
+            .padding(.bottom, 100) // Extra padding for custom tab bar
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+}
+
+struct RecipeInfoCard: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundColor(color)
+                .frame(width: 32, height: 32)
+                .background(color.opacity(0.1))
+                .clipShape(Circle())
+
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+
+                Text(value)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+}
+
+// MARK: - Share Sheet
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+struct RecipeDetailView: View {
+    let recipe: Recipe
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var recipeStore: RecipeStore
+    @State private var isFavorite: Bool = false
+    @State private var showingShareSheet: Bool = false
+
+    private let bannerHeight: CGFloat = 320
+    private let cornerRadius: CGFloat = 24
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                // Banner Image with Floating Buttons
+                ZStack(alignment: .top) {
+                    // Banner Image
+                    Button(action: {
+                        openOriginalSource()
+                    }) {
+                        AsyncImage(url: URL(string: recipe.imageUrl)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            RecipeImagePlaceholder(isFromReel: recipe.isFromReel)
+                        }
+                        .frame(height: bannerHeight)
+                        .clipped()
+                    }
+                    .buttonStyle(.plain)
+
+                    // Floating Navigation Buttons
+                    HStack {
+                        // Back Button
+                        Button(action: { dismiss() }) {
+                            Circle()
+                                .fill(Color(.systemBackground).opacity(0.9))
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.primary)
+                                )
+                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        }
+
+                        Spacer()
+
+                        // Share & Favorite Buttons
+                        HStack(spacing: 12) {
+                            Button(action: { showingShareSheet = true }) {
+                                Circle()
+                                    .fill(Color(.systemBackground).opacity(0.9))
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundColor(.primary)
+                                    )
+                                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            }
+
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    isFavorite.toggle()
+                                }
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                            }) {
+                                Circle()
+                                    .fill(Color(.systemBackground).opacity(0.9))
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(isFavorite ? .red : .primary)
+                                    )
+                                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 56) // Account for status bar
+                }
+
+                // Content Card with Rounded Top Corners
+                VStack(spacing: 24) {
+                    // Recipe Title and Details
+                    VStack(spacing: 16) {
+                        Text(recipe.name)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                        
+                        // Recipe Info Cards
+                        HStack(spacing: 12) {
+                            // Prep Time
+                            if let prepTime = recipe.prepTime {
+                                RecipeInfoCard(
+                                    icon: "clock",
+                                    title: "Prep",
+                                    value: "\(prepTime) min",
+                                    color: .blue
+                                )
+                            }
+                            
+                            // Cook Time
+                            if let cookTime = recipe.cookTime {
+                            RecipeInfoCard(
+                                icon: "flame",
+                                    title: "Cook",
+                                    value: "\(cookTime) min",
+                                    color: .orange
+                            )
+                            }
+                            
+                            // Difficulty
+                            if let difficulty = recipe.difficulty {
+                                RecipeInfoCard(
+                                    icon: difficulty.iconName,
+                                    title: "Level",
+                                    value: difficulty.displayName,
+                                    color: .green
+                                )
+                            }
+                            
+                            // Platform Source
+                            if recipe.isFromReel && recipe.extractedFrom != nil && recipe.platformDisplayName != "Unknown" {
+                                RecipeInfoCard(
+                                    icon: recipe.platformIcon,
+                                    title: "Source",
+                                    value: recipe.platformDisplayName,
+                                    color: .black
+                                )
+                            }
+                        }
+                        
+                        if !recipe.description.isEmpty {
+                            Text(recipe.description)
+                                .padding(.top, 4)
+                        }
+                        
+                        // Creator Information
+                        if recipe.hasCreatorInfo, let creatorName = recipe.displayCreatorName {
+                            HStack(spacing: 8) {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("by \(creatorName)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.top, 8)
+                        }
+                    }
+                    
+                    // Lazy load heavy components
+                    Group {
+                    if let nutrition = recipe.nutrition {
+                        NutritionView(nutrition: nutrition)
+                    }
+                    
+                    ChatWithSousChefCard(recipe: recipe)
+                    
+                    IngredientsView(recipe: recipe)
+                    
+                    InstructionsView(recipe: recipe)
+                    }
+                }
+                .padding()
+                .padding(.bottom, 40)
+                .background(Color(.systemBackground))
+                .cornerRadius(cornerRadius, corners: [.topLeft, .topRight])
+                .offset(y: -cornerRadius)
+            }
+        }
+        .ignoresSafeArea(edges: .top)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .onReceive(recipeStore.$shouldDismissToHome) { shouldDismiss in
+            if shouldDismiss {
+                dismiss()
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareSheet(items: [recipe.name, recipe.imageUrl])
+        }
+    }
+    
+    private func openOriginalSource() {
+        // First try to use the stored original URL
+        if let originalUrl = recipe.originalUrl, let url = URL(string: originalUrl) {
+            UIApplication.shared.open(url)
+            return
+        }
+        
+        // Fallback to old behavior for recipes without stored URL
+        guard recipe.isFromReel, let extractedFrom = recipe.extractedFrom else { return }
+        
+        let fallbackURL: String
+        switch extractedFrom.lowercased() {
+        case "instagram":
+            fallbackURL = "https://instagram.com"
+        case "tiktok":
+            fallbackURL = "https://tiktok.com"
+        case "youtube":
+            fallbackURL = "https://youtube.com"
+        default:
+            fallbackURL = "https://google.com/search?q=\(recipe.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        }
+        
+        if let url = URL(string: fallbackURL) {
+            UIApplication.shared.open(url)
+        }
+    }
+}
+
+// ========================================================================
+// MARK: - Sheet Views
+// ========================================================================
+
+struct NewCollectionSheet: View {
+    @EnvironmentObject var store: RecipeStore
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var name: String = ""
+    @State private var showingDuplicateError = false
+    @FocusState private var isFocused: Bool
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Collection Name")) {
+                    TextField("e.g., Weeknight Meals", text: $name)
+                        .focused($isFocused)
+                }
+                
+                if showingDuplicateError {
+                    Section {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                            Text("A collection with this name already exists. Please choose a different name.")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("New Collection")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    isFocused = true
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Add") {
+                        let success = store.createCollection(named: name)
+                        if success {
+                        dismiss()
+                        } else {
+                            showingDuplicateError = true
+                            // Give haptic feedback
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                            impactFeedback.impactOccurred()
+                        }
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .onChange(of: name) { _, _ in
+                // Hide error when user starts typing again
+                if showingDuplicateError {
+                    showingDuplicateError = false
+                }
+            }
+        }
+    }
+}
+
+struct AddToCollectionSheet: View {
+    @EnvironmentObject var store: RecipeStore
+    @Environment(\.dismiss) private var dismiss
+    let recipe: Recipe
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if store.collections.isEmpty {
+                    Text("No collections found.\nCreate one from the Home screen.")
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                } else {
+                    ForEach(store.collections) { collection in
+                        Button(action: {
+                            store.toggle(recipe, in: collection)
+                        }) {
+                            HStack {
+                                Text(collection.name)
+                                Spacer()
+                                if store.isRecipe(recipe, in: collection) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle("Add '\(recipe.name)' to...")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct AddRecipesToCollectionSheet: View {
+    @EnvironmentObject var store: RecipeStore
+    @Environment(\.dismiss) private var dismiss
+    let collection: Collection
+    
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(store.recipes) { recipe in
+                    Button(action: {
+                        store.toggle(recipe, in: collection)
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(recipe.name).lineLimit(1)
+                                if let totalTime = recipe.totalTime {
+                                    Text("\(totalTime) min")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
+                            }
+                            Spacer()
+                            if store.isRecipe(recipe, in: collection) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .navigationTitle("Add to '\(collection.name)'")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct ShareCollectionSheet: View {
+    @EnvironmentObject var store: RecipeStore
+    @Environment(\.dismiss) private var dismiss
+    let collection: Collection
+    
+    @State private var shareText = ""
+    @State private var showingLinkAndInstructionsSheet = false
+    @State private var showingLinkOnlySheet = false
+    @State private var isSharing = false
+    @State private var shareLink = ""
+    @State private var showingCopyFeedback = false
+    
+    private var recipesInCollection: [Recipe] {
+        store.recipes(in: collection)
+    }
+    
+    private var collectionShareLink: String {
+        return "https://souschef.ai/\(collection.id)"
+    }
+    
+    private var shareContent: String {
+        let link = collectionShareLink
+        var content = "🍽️ Check out my '\(collection.name)' collection from Sous Chef!\n\n"
+        
+        if recipesInCollection.isEmpty {
+            content += "This collection is ready for new recipes! 📝"
+        } else {
+            content += "📋 \(recipesInCollection.count) delicious \(recipesInCollection.count == 1 ? "recipe" : "recipes"):\n\n"
+            
+            for (index, recipe) in recipesInCollection.prefix(3).enumerated() {
+                let timeText = recipe.totalTime.map { "\($0) min" } ?? ""
+                content += "\(index + 1). \(recipe.name)" + (timeText.isEmpty ? "" : " (\(timeText))") + "\n"
+            }
+            
+            if recipesInCollection.count > 3 {
+                content += "... and \(recipesInCollection.count - 3) more!\n"
+            }
+        }
+        
+        content += "\n🔗 Import link: \(link)\n\n📱 To import: Paste this link in the Import tab of Sous Chef!"
+        return content
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.up.circle.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(.black)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Share Collection")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.black)
+                            Text("Share your recipes with others! 🍽️")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal)
+                
+                // Collection Preview
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Preview")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    
+                    ScrollView {
+                        Text(shareContent)
+                            .font(.body)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(12)
+                    }
+                    .frame(maxHeight: 200)
+                }
+                .padding(.horizontal)
+                
+                // Share Options
+                VStack(spacing: 16) {
+                    // Share Collection Link & Instructions (Primary)
+                    Button(action: {
+                        showingLinkAndInstructionsSheet = true
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.title3)
+                            Text("Share Link & Instructions")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.brandYellow, Color.brandYellow.opacity(0.8)]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(12)
+                        .shadow(color: Color.brandYellow.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    // Share Collection Link Only (Secondary)
+                    Button(action: {
+                        showingLinkOnlySheet = true
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "link")
+                                .font(.title3)
+                            Text("Share Collection Link")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.black.opacity(0.1))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.black.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
+                
+                // Import Instructions
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "info.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.brandYellow)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("How to Import")
+                                .font(.headline)
+                                .foregroundColor(.black)
+                            Text("Recipients can paste the link in the Import tab to add this collection to their Sous Chef")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 12)
+                .background(Color.brandYellow.opacity(0.1))
+                .cornerRadius(12)
+                .padding(.horizontal)
+                
+                Spacer()
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .sheet(isPresented: $showingLinkAndInstructionsSheet) {
+            ActivityViewController(activityItems: [shareContent])
+        }
+        .sheet(isPresented: $showingLinkOnlySheet) {
+            ActivityViewController(activityItems: [collectionShareLink])
+        }
+    }
+}
+
+struct RenameCollectionSheet: View {
+    let collection: Collection
+    @EnvironmentObject var store: RecipeStore
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var name: String = ""
+    @State private var showingDuplicateError = false
+    @FocusState private var isFocused: Bool
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Collection Name")) {
+                    TextField("Enter new name...", text: $name)
+                        .focused($isFocused)
+                }
+                
+                if showingDuplicateError {
+                    Section {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                            Text("A collection with this name already exists. Please choose a different name.")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Rename Collection")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                name = collection.name
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    isFocused = true
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        let success = store.renameCollection(collection, to: name)
+                        if success {
+                            dismiss()
+                        } else {
+                            showingDuplicateError = true
+                            // Give haptic feedback
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                            impactFeedback.impactOccurred()
+                        }
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || name.trimmingCharacters(in: .whitespaces) == collection.name)
+                }
+            }
+            .onChange(of: name) { _, _ in
+                // Hide error when user starts typing again
+                if showingDuplicateError {
+                    showingDuplicateError = false
+                }
+            }
+        }
+    }
+}
+
+struct ActivityViewController: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+struct ImportReelSheet: View {
+    @EnvironmentObject var recipeStore: RecipeStore
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var currentStep: ImportStep = .linkInput
+    @State private var reelLink = ""
+    @State private var customName = ""
+    
+    @FocusState private var isLinkFieldFocused: Bool
+    @FocusState private var isNameFieldFocused: Bool
+    
+    enum ImportStep: Int {
+        case linkInput
+        case nameInput
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach(0..<2) { index in
+                            Circle()
+                                .fill(index <= currentStep.rawValue ? Color.black : Color.gray.opacity(0.2))
+                                .frame(width: 5, height: 5)
+                        }
+                    }
+                    .padding(.top, 24)
+                    
+                    if currentStep == .nameInput {
+                        VStack(spacing: 4) {
+                            Text("Name Your Recipe")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.black)
+                            Text("Optional: Give it a custom name")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 8)
+                    }
+                }
+                .padding(.horizontal, 24)
+                
+                Spacer()
+                
+                VStack(spacing: 24) {
+                    switch currentStep {
+                    case .linkInput:
+                        LinkInputContent(reelLink: $reelLink, isLinkFieldFocused: $isLinkFieldFocused)
+                    case .nameInput:
+                        NameInputContent(customName: $customName, isNameFieldFocused: $isNameFieldFocused)
+                    }
+                }
+                .padding(.horizontal, 24)
+                
+                Spacer()
+                
+                VStack(spacing: 12) {
+                    Button(action: handlePrimaryAction) {
+                        HStack(spacing: 8) {
+                            if currentStep == .nameInput { Image(systemName: "sparkles") }
+                            Text(currentStep == .linkInput ? "Continue" : "Import Recipe").fontWeight(.medium)
+                        }
+                        .frame(maxWidth: .infinity).frame(height: 50)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.black)
+                    .disabled(currentStep == .linkInput && !isLinkValid)
+                    
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(.black.opacity(0.6))
+                        .font(.system(size: 16, weight: .medium))
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 34)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationBarHidden(true)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .onAppear {
+            if currentStep == .linkInput {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { isLinkFieldFocused = true }
+            }
+        }
+    }
+    
+    private var isLinkValid: Bool {
+        let trimmed = reelLink.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Accept any URL that looks like a valid web link, including collection share links
+        return !trimmed.isEmpty && (
+            trimmed.hasPrefix("http://") ||
+            trimmed.hasPrefix("https://") ||
+            trimmed.contains(".com") ||
+            trimmed.contains(".org") ||
+            trimmed.contains(".net") ||
+            trimmed.contains("tiktok.com") ||
+            trimmed.contains("instagram.com") ||
+            trimmed.contains("youtube.com") ||
+            trimmed.contains("souschef.ai/")
+        )
+    }
+    
+    private func isCollectionLink(_ url: String) -> Bool {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.contains("recipewallet.ai/") && !trimmed.contains("/recipe/")
+    }
+    
+    private func handlePrimaryAction() {
+        switch currentStep {
+        case .linkInput:
+            // Skip name input for collection links - import directly
+            if isCollectionLink(reelLink) {
+                recipeStore.startImport(url: reelLink, customName: "")
+                dismiss()
+            } else {
+                // Regular recipe import - go to name input
+            withAnimation(.easeInOut(duration: 0.3)) {
+                currentStep = .nameInput
+                isLinkFieldFocused = false
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { isNameFieldFocused = true }
+            }
+            
+        case .nameInput:
+            recipeStore.startImport(url: reelLink, customName: customName)
+            dismiss()
+        }
+    }
+}
+
+
+// ========================================================================
+// MARK: - Reusable Component Views
+// ========================================================================
+
+struct RecipeCard: View {
+    let recipe: Recipe
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            AsyncImage(url: URL(string: recipe.imageUrl)) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                RecipeImagePlaceholder(isFromReel: false)
+            }
+            .frame(height: 120)
+            .clipped()
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(recipe.name)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(height: 44, alignment: .top)
+                    .minimumScaleFactor(0.8)
+                
+                HStack(spacing: 4) {
+                    if let totalTime = recipe.totalTime {
+                        Label("\(totalTime) min", systemImage: "clock")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    }
+                    
+                    if let difficulty = recipe.difficulty {
+                        Image(systemName: difficulty.iconName)
+                            .font(.caption2)
+                            .foregroundColor(difficulty.color)
+                    }
+                }
+            }
+            .padding(10)
+        }
+        .background(.background)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+    }
+}
+
+struct LoadingRecipeCard: View {
+    let recipeName: String
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Loading image placeholder with shimmer effect
+            ZStack {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(height: 120)
+                
+                VStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .tint(.brandYellow)
+                    
+                    Text("Loading...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .overlay(
+                // Shimmer effect
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color.white.opacity(0.3),
+                                Color.clear
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .offset(x: isAnimating ? 300 : -300)
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: isAnimating)
+            )
+            .clipped()
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(recipeName.isEmpty ? "Extracting Recipe..." : recipeName)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(height: 44, alignment: .top)
+                    .minimumScaleFactor(0.8)
+                    .foregroundColor(recipeName.isEmpty ? .secondary : .primary)
+                
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .tint(.brandYellow)
+                    
+                    Text("Extracting recipe...")
+                        .font(.caption)
+                        .foregroundColor(.brandDarkGray)
+                }
+            }
+            .padding(10)
+        }
+        .background(.background)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.1), radius: 5)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.brandYellow.opacity(0.6), lineWidth: 1.5)
+        )
+        .onAppear {
+            isAnimating = true
+        }
+    }
+}
+
+struct CollectionCard: View {
+    let collection: Collection
+    var onDelete: () -> Void
+    
+    @EnvironmentObject var store: RecipeStore
+    @State private var showingDeleteAlert = false
+    @State private var showingShareSheet = false
+    @State private var showingRenameSheet = false
+    @State private var glowOpacity: Double = 0.0
+    
+    private var recipeCount: Int {
+        store.recipes(in: collection).count
+    }
+    
+    private var isNewlyImported: Bool {
+        store.newlyImportedCollections.contains(collection.id)
+    }
+    
+    var body: some View {
+        ZStack {
+            VStack(alignment: .leading, spacing: 0) {
+                // Title area with flexible height
+                Text(collection.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                
+                // Bottom row with recipe count and share button
+                HStack {
+                Label("\(recipeCount) \(recipeCount == 1 ? "recipe" : "recipes")", systemImage: "tray.fill")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    // Share button (bottom right)
+                    Button(action: {
+                        showingShareSheet = true
+                    }) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(12)
+            .frame(width: 160, height: 100)
+            
+            // Menu overlay (top right)
+            if collection.name != "Meal Preps" {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Menu {
+                            Button {
+                                showingRenameSheet = true
+                            } label: {
+                                Label("Rename Collection", systemImage: "pencil")
+                            }
+                            
+                            Button(role: .destructive) {
+                                showingDeleteAlert = true
+                            } label: {
+                                Label("Delete Collection", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(8)
+                                .contentShape(Rectangle())
+                        }
+                        .menuStyle(.borderlessButton)
+                    }
+                    Spacer()
+                }
+                .padding(4)
+            }
+        }
+        .background(.background)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
+        .overlay(
+            // Glowing border for newly imported collections
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.brandYellow, Color.brandYellow.opacity(0.3)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: isNewlyImported ? 3 : 0
+                )
+                .opacity(isNewlyImported ? glowOpacity : 0)
+        )
+        .onAppear {
+            if isNewlyImported {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    glowOpacity = 1.0
+                }
+            }
+        }
+        .onChange(of: isNewlyImported) { _, newValue in
+            if newValue {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    glowOpacity = 1.0
+                }
+            } else {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    glowOpacity = 0.0
+                }
+            }
+        }
+        .alert("Delete '\(collection.name)'?", isPresented: $showingDeleteAlert) {
+            Button("Delete", role: .destructive, action: onDelete)
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareCollectionSheet(collection: collection)
+        }
+        .sheet(isPresented: $showingRenameSheet) {
+            RenameCollectionSheet(collection: collection)
+        }
+    }
+}
+struct CollectionsRowView: View {
+    @EnvironmentObject var recipeStore: RecipeStore
+    @Binding var showingCreateSheet: Bool
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                ForEach(recipeStore.collections) { collection in
+                    NavigationLink(destination: CollectionDetailView(collection: collection)) {
+                        CollectionCard(collection: collection) {
+                            recipeStore.deleteCollection(collection)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                AddCollectionCard(action: {
+                    showingCreateSheet = true
+                })
+            }
+            .padding()
+        }
+        .frame(height: 124)
+    }
+}
+
+struct AddCollectionCard: View {
+    var action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+                
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
+                    .foregroundColor(Color.secondary.opacity(0.6))
+                
+                VStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.title3.weight(.semibold))
+                    Text("New")
+                        .font(.headline)
+                }
+                .foregroundColor(.secondary)
+            }
+            .frame(width: 100, height: 100)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct SearchBar: View {
+    @Binding var text: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+            TextField("Search recipes or ingredients...", text: $text)
+        }
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(10)
+    }
+}
+
+struct ProcessingIndicator: View {
+    let onCancel: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            ProgressView().scaleEffect(1.5).tint(.brandYellow)
+            VStack(spacing: 8) {
+                Text("Extracting Recipe...").font(.headline).fontWeight(.semibold)
+                Text("AI is analyzing your link and extracting the recipe.\nThis can take up to 90 seconds.").font(.subheadline).foregroundColor(.secondary).multilineTextAlignment(.center)
+            }
+            Button("Cancel", action: onCancel).buttonStyle(.bordered).controlSize(.large).tint(.secondary)
+        }
+        .padding(32)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.2), radius: 20)
+        .transition(.opacity.combined(with: .scale(scale: 0.8)))
+    }
+}
+
+struct EmptyStateView: View {
+    let hasRecipes: Bool
+    let searchText: String
+
+    var body: some View {
+        VStack(spacing: 20) {
+            // Use mascot image for no recipes, SF Symbol for search results
+            if hasRecipes && !searchText.isEmpty {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 50))
+                    .foregroundColor(.secondary)
+            } else if !hasRecipes {
+                Image("app_logo_searching")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 140, height: 140)
+            }
+
+            VStack(spacing: 8) {
+                Text(titleText)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+
+                Text(subtitleText)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(40)
+    }
+
+    private var titleText: String {
+        if !searchText.isEmpty {
+            return "No results for \"\(searchText)\""
+        }
+        return hasRecipes ? "" : "No Recipes Yet"
+    }
+
+    private var subtitleText: String {
+        if !searchText.isEmpty {
+            return "Try a different search."
+        }
+        return hasRecipes ? "" : "Import a recipe to get started."
+    }
+}
+
+struct RecipeImagePlaceholder: View {
+    let isFromReel: Bool
+    
+    var body: some View {
+        ZStack {
+            Rectangle().fill(Color.gray.opacity(0.1))
+            Image(systemName: isFromReel ? "video" : "fork.knife")
+                .font(.largeTitle)
+                .foregroundColor(isFromReel ? .black.opacity(0.8) : .orange.opacity(0.8))
+        }
+    }
+}
+
+struct DetailSectionView<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.title2).fontWeight(.semibold)
+            VStack(alignment: .leading, spacing: 10) { content }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(12)
+        }
+    }
+}
+
+// MARK: - Nutrition View
+struct NutritionView: View {
+    let nutrition: Nutrition
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Clean section title
+            Text("Nutrition")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(.primary)
+                .padding(.bottom, 20)
+            
+            // Elegant nutrition grid
+            VStack(spacing: 1) {
+                // Top row: Calories (prominent)
+                if let calories = nutrition.calories {
+                    HStack {
+                        Text("Calories")
+                            .font(.system(size: 16))
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Text("\(calories)")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 20)
+                    .background(Color(.systemBackground))
+                    
+                    // Separator
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(height: 0.5)
+                }
+                
+                // Macros in clean rows
+                VStack(spacing: 1) {
+                    if let protein = nutrition.protein {
+                        NutritionRow(label: "Protein", value: "\(protein)g")
+                    }
+                    if let carbs = nutrition.carbs {
+                        NutritionRow(label: "Carbohydrates", value: "\(carbs)g")
+                    }
+                    if let fats = nutrition.fats {
+                        NutritionRow(label: "Total Fat", value: "\(fats)g")
+                    }
+                }
+                
+                // Bottom separator and servings
+                if let portions = nutrition.portions {
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(height: 0.5)
+                    
+                    HStack {
+                        Text("Servings")
+                            .font(.system(size: 16))
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Text("\(portions)")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 20)
+                    .background(Color(.systemBackground))
+                }
+            }
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(.separator), lineWidth: 0.5)
+            )
+        }
+        .padding(.bottom, 24)
+    }
+}
+
+struct NutritionRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.primary)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 20)
+        .background(Color(.systemBackground))
+    }
+}
+
+
+// MARK: Import Sheet Subviews
+
+struct LinkInputContent: View {
+    @Binding var reelLink: String
+    @FocusState.Binding var isLinkFieldFocused: Bool
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // URL Input Section
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Recipe URL")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                TextField("Paste recipe link", text: $reelLink)
+                    .focused($isLinkFieldFocused)
+                    .textFieldStyle(.plain)
+                    .keyboardType(.URL)
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 16))
+                    .padding(16)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            }
+            
+            // Tips Section
+            VStack(spacing: 16) {
+                    Text("Quick Tips")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // Tips List
+                VStack(alignment: .leading, spacing: 16) {
+                    TipRow(icon: "square.and.arrow.up",
+                           text: "Copy link from any recipe source")
+                    
+                    TipRow(icon: "globe",
+                           text: "Supports TikTok, websites & social media")
+                    
+                    TipRow(icon: "wand.and.stars",
+                           text: "AI extracts ingredients & instructions")
+            }
+            .padding(20)
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+            }
+            .padding(.vertical, 8)
+        }
+        .padding(.horizontal, 4) // Subtle padding for better visual balance
+    }
+}
+
+struct TipRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(.black.opacity(0.6))
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 18)
+            
+            Text(text)
+                .font(.system(size: 15))
+                .foregroundColor(.black.opacity(0.7))
+                .multilineTextAlignment(.leading)
+            
+            Spacer()
+        }
+    }
+}
+
+struct NameInputContent: View {
+    @Binding var customName: String
+    @FocusState.Binding var isNameFieldFocused: Bool
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "pencil.circle.fill").foregroundColor(.orange)
+                    Text("Custom Name").font(.subheadline).fontWeight(.medium)
+                    Spacer()
+                    Text("Optional").font(.caption).foregroundColor(.secondary).padding(.horizontal, 8).padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.1)).cornerRadius(8)
+                }
+                TextField("Enter recipe name...", text: $customName)
+                    .focused($isNameFieldFocused).textFieldStyle(.roundedBorder)
+            }
+            HStack(spacing: 12) {
+                Image(systemName: "magic.wand.and.stars").foregroundColor(.purple).font(.title2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("We'll handle the rest!").font(.subheadline).fontWeight(.medium)
+                    Text("Leave blank to use the original recipe name. You can always edit it later.")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+            .padding(16).background(Color.purple.opacity(0.05))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.purple.opacity(0.2), lineWidth: 1)).cornerRadius(12)
+        }
+    }
+}

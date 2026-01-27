@@ -1,0 +1,19 @@
+class: Reminder
+table: reminder
+fields:
+  shoppingListId: int
+  createdByUserId: String
+  title: String
+  dueAt: DateTime
+  isDone: bool
+  createdAt: DateTime
+  targetEmail: String?
+indexes:
+  reminder_list_idx:
+    fields: shoppingListId
+    type: btree
+    unique: false
+  reminder_due_idx:
+    fields: dueAt
+    type: btree
+    unique: false

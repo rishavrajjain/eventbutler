@@ -1,0 +1,14 @@
+class: ShoppingItem
+table: shopping_item
+fields:
+  shoppingListId: int
+  text: String
+  isChecked: bool
+  category: String?
+  updatedAt: DateTime
+  updatedByUserId: String?
+indexes:
+  shopping_item_list_idx:
+    fields: shoppingListId
+    type: btree
+    unique: false

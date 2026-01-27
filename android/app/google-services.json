@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "131165147482",
+    "project_id": "recipebutler-fd32c",
+    "storage_bucket": "recipebutler-fd32c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:131165147482:android:40a7efb52306dfa574a363",
+        "android_client_info": {
+          "package_name": "com.example.recipe_butler"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "131165147482-3bjlnk19svtttov62kiluh8m2dqe2u92.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHXiikmoAVEY6_O1_VoD7ZqcS4COdXR6Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "131165147482-3bjlnk19svtttov62kiluh8m2dqe2u92.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
