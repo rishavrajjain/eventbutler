@@ -4,6 +4,7 @@ import 'package:recipe_butler_client/recipe_butler_client.dart';
 
 import '../../../providers/shopping_lists_provider.dart';
 import '../../../providers/tasks_provider.dart';
+import '../../shopping_list_detail/shopping_list_modals.dart';
 import '../../../widgets/empty_state_widget.dart';
 import '../../../widgets/error_state_widget.dart';
 import '../../../widgets/loading_widget.dart';
@@ -256,11 +257,7 @@ class _HeroHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_inkBlack, Color(0xFF2C3E50)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: _inkBlack,
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [
           BoxShadow(
@@ -270,50 +267,91 @@ class _HeroHeader extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'My Tasks',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 24,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Text(
-                  listCount == 1 ? '1 Active' : '$listCount Active',
-                  style: const TextStyle(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'My Tasks',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: _accent,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 28,
                   ),
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  'Coordinate tasks and chat with your group for each event.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                    height: 1.4,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Vertical divider
+          Container(
+            width: 1,
+            height: 100,
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            color: Colors.white24,
+          ),
+          Column(
+            children: [
+              _ActionButton(
+                icon: Icons.playlist_add_rounded,
+                onTap: () async {
+                  final provider = context.read<ShoppingListsProvider>();
+                  final active = provider.activeList;
+                  await showShoppingListPickerModal(
+                    context: context,
+                    active: active,
+                    lists: provider.lists,
+                    onSelect: provider.setActiveList,
+                    onCreate: provider.createList,
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _ActionButton(
+                icon: Icons.group_add_rounded,
+                onTap: () {
+                  final provider = context.read<ShoppingListsProvider>();
+                  showJoinListModal(context, provider);
+                },
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Coordinate tasks and chat with your group for each event.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white70,
-              height: 1.4,
-            ),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _accent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 64,
+          height: 56,
+          alignment: Alignment.center,
+          child: Icon(icon, color: _inkBlack, size: 30),
+        ),
       ),
     );
   }

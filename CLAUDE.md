@@ -138,10 +138,13 @@ We will not run Postgres locally.
 
 ### Day-to-day loop
 - Code locally (Flutter Web + Serverpod server)
-- Deploy backend when needed:
-  - `scloud deploy`
+- **To Deploy**:
+  1. Bump version in `pubspec.yaml`
+  2. Build: `flutter build web --base-href / --wasm --output ../recipe_butler_server/web/app`
+  3. Deploy: `cd recipe_butler_server && scloud deploy`
 - Use Cloud logs for debugging:
   - `scloud logs` (or Cloud dashboard)
+
 
 ---
 
@@ -190,18 +193,113 @@ We will not run Postgres locally.
 
 ---
 
-## 11) Build and quality gates (every session)
-Before stopping:
-- `flutter build web --base-href / --wasm --no-tree-shake-icons --output ../recipe_butler_server/web/app` (serve at root; preserves icons/fonts)
-- no analyzer errors
-- basic happy-path manual test:
-  - create list
-  - add item
-  - toggle item
-  - send task message
-  - create reminder
+## 11) Deployment Protocol (Follow Exactly)
+
+> [!CAUTION]
+> **READ THIS ENTIRE SECTION BEFORE DEPLOYING. Past mistakes have caused hours of debugging.**
+
+### Project Structure (CRITICAL)
+```
+/Users/rishavrajjain/code/recipe_butler/     <-- Flutter app root (run flutter commands HERE)
+├── lib/                                      <-- Flutter source code
+├── pubspec.yaml                              <-- Version is defined HERE
+├── recipe_butler_server/                     <-- Serverpod server (subdirectory, NOT sibling)
+│   └── web/
+│       └── app/                              <-- Web build output goes HERE
+└── recipe_butler_client/                     <-- Generated client
+```
+
+**KEY INSIGHT**: `recipe_butler_server` is INSIDE `recipe_butler`, NOT a sibling folder. This affects all path references.
 
 ---
+
+### Step 1: Version Bump (CRITICAL)
+- **Why**: Serverpod Cloud caches heavily. You MUST bump the version to force users to see new changes.
+- **File**: `/Users/rishavrajjain/code/recipe_butler/pubspec.yaml`
+- **Action**: Increment `version`: e.g., `1.3.1+3` → `1.3.2+4`
+
+---
+
+### Step 2: Build Flutter Web
+
+> [!IMPORTANT]  
+> **Output path is `recipe_butler_server/web/app` (NOT `../recipe_butler_server/web/app`)**
+
+**Command** (run from `/Users/rishavrajjain/code/recipe_butler`):
+```bash
+flutter build web --base-href / --wasm --no-tree-shake-icons --output recipe_butler_server/web/app
+```
+
+**VERIFY BEFORE DEPLOYING**:
+```bash
+cat recipe_butler_server/web/app/version.json
+```
+This MUST show the new version you set in pubspec.yaml. If it shows an old version:
+1. Run `flutter clean`
+2. Run `flutter pub get`
+3. Rebuild with the command above
+4. Check version.json again
+
+**Common Mistakes**:
+| Mistake | Result | Fix |
+|---------|--------|-----|
+| Using `../recipe_butler_server/web/app` | Build goes to wrong location outside project | Use `recipe_butler_server/web/app` (no `../`) |
+| Not running `flutter pub get` after version bump | Old version baked into build | Run `flutter clean && flutter pub get` first |
+| Building from wrong directory | Path resolution fails | Always `cd /Users/rishavrajjain/code/recipe_butler` first |
+
+---
+
+### Step 3: Deploy to Cloud
+
+**Command** (run from `/Users/rishavrajjain/code/recipe_butler/recipe_butler_server`):
+```bash
+cd recipe_butler_server && scloud deploy
+```
+
+Or from the Flutter root:
+```bash
+cd /Users/rishavrajjain/code/recipe_butler/recipe_butler_server && scloud deploy
+```
+
+**Check deployment status**:
+```bash
+scloud deployment show --project recipebutler
+```
+
+Wait until all 4 stages show ✅:
+- Booster liftoff
+- Orbit acceleration
+- Orbital insertion
+- Pod commissioning
+
+---
+
+### Step 4: Verify Live Deployment
+
+1. **Check version.json online**: https://recipebutler.serverpod.space/version.json
+   - Must show the new version number
+   
+2. **Hard Refresh the app**: https://recipebutler.serverpod.space/
+   - Mac: `Cmd + Shift + R`
+   - Windows: `Ctrl + Shift + R`
+   - Or: Open DevTools → Right-click refresh → "Empty Cache and Hard Reload"
+
+3. **If still seeing old version**:
+   - Try incognito/private window
+   - Wait 2-3 minutes for CDN propagation
+   - Re-check version.json
+
+---
+
+### Quick Reference Commands (Copy-Paste Ready)
+
+```bash
+# Full deployment from scratch (run from /Users/rishavrajjain/code/recipe_butler)
+flutter clean && flutter pub get && flutter build web --base-href / --wasm --no-tree-shake-icons --output recipe_butler_server/web/app && cat recipe_butler_server/web/app/version.json && cd recipe_butler_server && scloud deploy
+```
+
+---
+
 ## 12) Notes log (keep updated)
 - Date:
 - What changed:
