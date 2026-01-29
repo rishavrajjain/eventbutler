@@ -11,7 +11,7 @@ class EmailService {
   final Session session;
 
   static const _resendEndpoint = 'https://api.resend.com/emails';
-  static const _from = 'Event Butler <notifications@eventbutler.dev>';
+  static const _from = 'Event Butler <onboarding@resend.dev>';
 
   Future<void> sendReminderEmail(Reminder reminder) async {
     final apiKey = session.serverpod.getPassword('RESEND_API_KEY');
@@ -26,9 +26,12 @@ class EmailService {
     if (to == null || to.isEmpty) return;
 
     final subject = 'Reminder: ${reminder.title}';
-    final formattedDue =
-        reminder.dueAt.toLocal().toIso8601String().replaceFirst('T', ' ');
-    final body = '''
+    final formattedDue = reminder.dueAt
+        .toLocal()
+        .toIso8601String()
+        .replaceFirst('T', ' ');
+    final body =
+        '''
 Hi,
 
 This is your Event Butler reminder:
