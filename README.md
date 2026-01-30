@@ -1,101 +1,161 @@
- # Event Butler 📅🤖
-**Real-time event planning with teams, vendors, and reminders in one place.**
+# Event Butler 📅🤖
 
-- **Live demo:** https://recipebutler.serverpod.space (temporary hackathon URL)
-- **Demo video:** [Watch Demo](https://youtu.be/pHJ4FsjsyPU)
+**Real-time event coordination for teams and vendors.**
+**Separate workspaces for each part of an event, plus one Reminders timeline so nothing gets missed.**
 
----
-
-## Inspiration
-
-Planning an event breaks in the same place: coordination.
-
-Last month during our company offsite, the headcount was updated in too many places: Notes, WhatsApp, and a spreadsheet. The caterer brought food for fewer people than we had, and we had to fix it at the last minute.
-
-**Event Butler** keeps the plan, the people, and the reminders in one place, so everyone stays in sync.
+- **Live demo:** https://recipebutler.serverpod.space  
+- **Demo video:** https://youtu.be/pHJ4FsjsyPU  
 
 ---
 
-## What it does
+## 💡 Inspiration
 
-Event Butler breaks an event into focused workspaces (lists) like **Food**, **Games**, and **Venue**. Each list is its own workspace with separate tasks, chat, and collaborators.
+Last month I helped organize my company’s team outing.
 
-### Key features
-- **Focused workspaces:** Separate items, separate chat, separate collaborators. Less noise.
-- **AI Butler suggestions:** Type a prompt like *“BBQ catering for 30 people, outdoor event”* and get suggested tasks plus smart reminders.
-- **Vendor collaboration (with access control):** Invite an external vendor into a specific list (for example, the caterer joins Food). They only see what they need to see.
-- **Real-time sync:** Updates happen instantly across clients, no refresh needed.
-- **Unified reminders:** A single reminders view that aggregates deadlines from all lists so nothing slips.
+We had:
+- a shared notes doc
+- a group chat with 200 messages
+- three different calendar apps
+
+We forgot a lot of things. It was chaos.
+
+The problem was not “writing tasks is hard”.
+The problem was **coordination**: the plan gets split across tools, updates don’t reach everyone, and follow-ups slip.
+
+That’s why I built **Event Butler**.
 
 ---
 
-## How it’s built
+## 🚀 What it does (demo flow)
+
+Event Butler turns one messy plan into focused **Workspaces**.
+
+### 1) Workspaces per event area
+For a team outing, I create separate workspaces like:
+- **Food**
+- **Games**
+- **Venue**
+
+Each workspace has **separate items, separate chat, separate collaborators** so people only see what they need.
+
+### 2) Sign-in that matches real sharing
+I can sign in via **email**, **Google**, or **guest mode**, using Serverpod auth.
+
+### 3) AI Butler to kickstart planning
+Inside a workspace, I ask:
+
+> “Barbecue catering for thirty people, outdoor event.”
+
+The Butler returns **shopping suggestions** and **reminder suggestions**.
+I add items like **plates** and **ice packs** with one tap, and they show up in the **Shopping List** tab.
+
+### 4) Invite vendors into only what they should see
+I share a join token with a caterer (example: Joe).
+Joe opens the app in a browser, signs in, and joins the **Food** workspace.
+
+Now the vendor collaborates with us, but **only on what they have to see**.
+
+**No WhatsApp. No email chains. The vendor is in the list.**
+
+### 5) Reminders that run on the server
+I set a reminder like “Confirm catering order”.
+It appears in the **Reminders** tab.
+
+When it’s due, Event Butler sends an **email automatically** using Serverpod **Future Calls** (scheduled tasks on the server).
+
+---
+
+## 🧩 Why this is different
+
+Most to-do apps assume everyone is internal.
+
+Real events include **external vendors**, and you can’t expose your full private plan to them.
+
+Event Butler solves this with:
+- **Workspace isolation**
+- **Vendor-safe collaboration**
+- **One reminders timeline** across all workspaces
+
+---
+
+## 🛠 How it’s built
 
 ### Frontend
 - **Flutter Web**
 
 ### Backend
-- **Serverpod (Dart backend)**
-  - **Auth:** Email and Google Sign-In (and optional guest flow)
-  - **WebSocket streams:** real-time chat and task updates
-  - **Future calls:** scheduled reminder workflows (and other time-based automation)
-  - **Type safety:** shared models drive backend + client code generation
+- **Serverpod (Dart framework)**
+  - **Auth**: email, Google sign-in (Firebase), and guest mode (Serverpod auth docs: https://docs.serverpod.dev/concepts/authentication)
+  - **Real-time**: streams over WebSockets for live collaboration (streams docs: https://docs.serverpod.dev/concepts/streams)
+  - **Automation**: **Future Calls** to schedule reminders and emails (scheduling docs: https://docs.serverpod.dev/concepts/scheduling)
+  - **Type-safe**: shared models and generated client APIs (overview: https://docs.serverpod.dev/overview)
+
+![Event Butler Interface](https://i.ibb.co/4xbnhvq/okbroo.png)
 
 ### Deployment
 - **Serverpod Cloud**
-  - Hosted backend + database + SSL with a simple deploy flow
+  - Deployed without managing Docker, servers, or a database manually (Serverpod Cloud docs: https://docs.serverpod.cloud/)
+
+![Serverpod Cloud](https://i.ibb.co/fV9j5p7V/Screenshot-2026-01-29-at-3-41-12-PM.png)
 
 ---
 
-## Demo flow (what judges will see)
+## 🔄 The Pivot (Recipe to Event)
 
-1. Create an event and make three lists: **Food**, **Games**, **Venue**
-2. Open **Food**
-3. Ask **AI Butler** for: *“BBQ catering for 30 people, outdoor event”*
-4. Add suggested items with one tap
-5. Share invite code and join as **Joe’s BBQ**
-6. Send a message from Joe, watch it appear instantly for the organizer
-7. Show that Joe can only access **Food**
-8. Open **Reminders** and show the unified view
-9. Create one reminder (and show email option if enabled)
+You may notice the demo URL is `recipebutler.serverpod.space`.
+
+This started as **RecipeButler**, focused on catering coordination.
+While building it, I realized catering issues are usually a symptom of a bigger problem: **the whole event plan is scattered**.
+
+So the architecture expanded into **workspaces + vendors + reminders**, and it became **Event Butler**.
+The URL stayed the same during the hackathon.
 
 ---
 
-## The pivot (Recipe → Event)
+## 🧠 Challenges & learnings
 
-You may notice the demo URL uses `recipebutler.serverpod.space`.
+- **Workspace permissions**
+  Vendors must be limited to their workspace, including real-time updates, so access checks had to be strict.
 
-This project started as **RecipeButler**, focused on catering coordination. While building, it became clear that catering issues are usually a symptom of a bigger problem: event planning is fragmented across too many tools.
+- **First backend build**
+  I have strong Flutter experience, but this was my first full backend build.
+  I learned server-side logic, schema changes, and real-time infrastructure.
 
-So the product evolved into **Event Butler**, covering the full event workflow (Food, Venue, Games, and more). The URL stayed as a temporary hackathon detail.
-
----
-
-## Challenges
-
-- **Real-time permissions:** Ensuring a vendor invited to Food cannot access other private lists required strict access checks on every request and stream subscription.
-- **Cross-role UX:** Keeping the UI simple for vendors while still powerful for organizers.
-- **First full-stack build:** I’ve built Flutter apps for 4 years, and this is my first deep backend build. Serverpod helped by keeping the entire stack in Dart and generating a lot of boilerplate.
+- **Structured AI output**
+  Getting consistent outputs that map cleanly into shopping items and reminders took iteration, but it made the UX much faster.
 
 ---
 
-## What’s next
+## 🏅 Accomplishments we’re proud of
 
-- **Payments inside lists:** Stripe payment links for vendor deposits and invoices.
-- **Calendar sync:** Two-way sync with Google Calendar and Outlook.
-- **Templates:** Reusable event templates (“Butler Blueprints”) for common event types.
-- **Smarter AI:** Suggestions that adapt to guest count, budget, and context across lists.
-
----
-
-## Links
-
-- **Live demo:** https://recipebutler.serverpod.space
-- **Demo video:** [Watch Demo](https://youtu.be/pHJ4FsjsyPU)
+- Workspaces that reduce noise and keep collaboration focused.
+- Vendor-safe access so external people only see what they need.
+- Real-time collaboration for tasks and updates.
+- A unified Reminders view that keeps deadlines on track.
 
 ---
 
-## Built with
+## 🔮 What’s next
 
-Flutter Web + Serverpod + Serverpod Cloud
+- **Agentic reminder workflows**
+  Reminders won’t just notify.
+  When a reminder fires, Event Butler can run a server action using AI plus MCP-style tools to execute workflows.
 
+- **Integrated payments**
+  Let vendors send invoices and collect deposits inside their workspace.
+
+- **Blueprint templates**
+  One-click workspace sets for weddings, hackathons, corporate offsites.
+
+- **Calendar sync**
+  Push Butler reminders to Google Calendar and Outlook.
+
+---
+
+## 🧰 Built with
+
+- Flutter  
+- Dart  
+- Serverpod  
+- PostgreSQL  
+- OpenAI API  
